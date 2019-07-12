@@ -1,0 +1,16 @@
+import a
+import b
+import c
+
+record C {
+	str: string
+	i: int
+}
+
+export if 1 == a {
+	if b == a {
+		b + a
+	} else {
+		10
+	}
+}
