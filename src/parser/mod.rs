@@ -41,3 +41,65 @@ fn export(i: &str) -> IResult<&str, Export> {
 fn import_list(i: &str) -> IResult<&str, Vec<Import>> {
     separated_list(sp, import)(i)
 }
+
+#[test]
+fn parser_test() {
+    assert_eq!(
+        parser(
+            r##"
+import a
+import b
+import c
+
+export if if ( -10 + 1 >= 3) != false { true } else { false } {
+    78 + 1
+    } else {
+        if true { 3 }
+    }
+"##
+        ),
+        Ok((
+            "",
+            Module {
+                imports: vec![
+                    Import {
+                        module: "a".to_string()
+                    },
+                    Import {
+                        module: "b".to_string()
+                    },
+                    Import {
+                        module: "c".to_string()
+                    },
+                ],
+                export: Export {
+                    expr: Expression::Conditional(
+                        Box::new(Expression::Conditional(
+                            Box::new(Expression::NotEqual(
+                                Box::new(Expression::GreaterThanOrEqual(
+                                    Box::new(Expression::Add(
+                                        Box::new(Expression::Minus(Box::new(Expression::Int(10)))),
+                                        Box::new(Expression::Int(1))
+                                    )),
+                                    Box::new(Expression::Int(3))
+                                )),
+                                Box::new(Expression::Bool(false,)),
+                            )),
+                            Box::new(Expression::Bool(true,)),
+                            Box::new(Some(Expression::Bool(false,),)),
+                        )),
+                        Box::new(Expression::Add(
+                            Box::new(Expression::Int(78,)),
+                            Box::new(Expression::Int(1,)),
+                        )),
+                        Box::new(Some(Expression::Conditional(
+                            Box::new(Expression::Bool(true)),
+                            Box::new(Expression::Int(3)),
+                            Box::new(None)
+                        ))),
+                    ),
+                },
+            },
+        ))
+    );
+}

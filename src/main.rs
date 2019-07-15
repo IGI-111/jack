@@ -11,7 +11,7 @@ import a
 import b
 import c
 
-export if if (-10 + 1 >= 3) != false { true } else { false } {
+export if if ( -10 + 1 >= 3) != false { true } else { false } {
     78 + 1
     } else {
         if true { 3 }

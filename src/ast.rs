@@ -1,20 +1,20 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Module {
     pub imports: Vec<Import>,
     pub export: Export,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Import {
     pub module: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Export {
     pub expr: Expression,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum Expression {
     Int(i64),
     Bool(bool),
