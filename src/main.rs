@@ -1,21 +1,28 @@
 extern crate nom;
 
 mod ast;
+mod eval;
 mod parser;
 
+use eval::run;
 use parser::parser;
+use std::env;
+use std::fs::File;
+use std::io::prelude::*;
 
 fn main() {
-    let txt = r##"
-import a
-import b
-import c
-
-export if if ( -10 + 1 >= 3) != false { true } else { false } {
-    78 + 1
-    } else {
-        if true { 3 }
+    for arg in env::args().skip(1) {
+        let mut file = File::open(arg.clone()).expect(&format!("Can't open file: {}", arg));
+        let mut text = String::new();
+        file.read_to_string(&mut text)
+            .expect(&format!("Can't read file: {}", arg));
+        let (_, module) = match parser(&text) {
+            Ok(res) => res,
+            Err(e) => {
+                eprintln!("{:?}", e);
+                panic!();
+            }
+        };
+        println!("{:?}", run(&module));
     }
-"##;
-    println!("{:#?}", parser(txt));
 }

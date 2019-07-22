@@ -2,15 +2,13 @@ import a
 import b
 import c
 
-record C {
-	str: string
-	i: int
-}
-
-export if 1 == a {
-	if b == a {
-		b + a
+export if true {
+	if 1 < true {
+		1
 	} else {
 		10
 	}
+} else {
+	3
 }
+

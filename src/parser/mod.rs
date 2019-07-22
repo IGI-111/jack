@@ -54,7 +54,7 @@ import c
 export if if ( -10 + 1 >= 3) != false { true } else { false } {
     78 + 1
     } else {
-        if true { 3 }
+        if true { 3 } else { 1 }
     }
 "##
         ),
@@ -75,10 +75,16 @@ export if if ( -10 + 1 >= 3) != false { true } else { false } {
                 export: Export {
                     expr: Expression::Conditional(
                         Box::new(Expression::Conditional(
-                            Box::new(Expression::NotEqual(
-                                Box::new(Expression::GreaterThanOrEqual(
-                                    Box::new(Expression::Add(
-                                        Box::new(Expression::Minus(Box::new(Expression::Int(10)))),
+                            Box::new(Expression::BinaryOp(
+                                BinaryOp::NotEqual,
+                                Box::new(Expression::BinaryOp(
+                                    BinaryOp::GreaterThanOrEqual,
+                                    Box::new(Expression::BinaryOp(
+                                        BinaryOp::Add,
+                                        Box::new(Expression::UnaryOp(
+                                            UnaryOp::Minus,
+                                            Box::new(Expression::Int(10))
+                                        )),
                                         Box::new(Expression::Int(1))
                                     )),
                                     Box::new(Expression::Int(3))
@@ -86,17 +92,18 @@ export if if ( -10 + 1 >= 3) != false { true } else { false } {
                                 Box::new(Expression::Bool(false,)),
                             )),
                             Box::new(Expression::Bool(true,)),
-                            Box::new(Some(Expression::Bool(false,),)),
+                            Box::new(Expression::Bool(false,)),
                         )),
-                        Box::new(Expression::Add(
+                        Box::new(Expression::BinaryOp(
+                            BinaryOp::Add,
                             Box::new(Expression::Int(78,)),
                             Box::new(Expression::Int(1,)),
                         )),
-                        Box::new(Some(Expression::Conditional(
+                        Box::new(Expression::Conditional(
                             Box::new(Expression::Bool(true)),
                             Box::new(Expression::Int(3)),
-                            Box::new(None)
-                        ))),
+                            Box::new(Expression::Int(1))
+                        )),
                     ),
                 },
             },
