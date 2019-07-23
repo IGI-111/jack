@@ -1,4 +1,6 @@
 use crate::ast::*;
+use std::collections::HashMap;
+use std::path::Path;
 
 #[derive(Debug)]
 pub enum Value {
@@ -64,7 +66,7 @@ pub fn eval(expr: &Expression) -> Value {
     }
 }
 
-pub fn run(ast: &Module) -> Value {
-    // TODO: resolve modules
-    eval(&ast.export.expr)
+pub fn run(main_module_name: &str, modules: &HashMap<String, Module>) -> Value {
+    let main_module = modules.get(main_module_name).unwrap();
+    eval(&main_module.export.expr)
 }

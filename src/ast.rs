@@ -1,5 +1,6 @@
 #[derive(Debug, PartialEq)]
 pub struct Module {
+    pub name: String,
     pub imports: Vec<Import>,
     pub export: Export,
 }

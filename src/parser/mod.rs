@@ -9,9 +9,16 @@ use nom::IResult;
 
 mod expression;
 
-pub fn parser(i: &str) -> IResult<&str, Module> {
+pub fn module(i: &str, module_name: String) -> IResult<&str, Module> {
     let (i, (_, imports, _, export, _)) = tuple((sp, import_list, sp, export, sp))(i)?;
-    Ok((i, Module { imports, export }))
+    Ok((
+        i,
+        Module {
+            imports,
+            export,
+            name: module_name,
+        },
+    ))
 }
 
 fn sp(i: &str) -> IResult<&str, &str> {
