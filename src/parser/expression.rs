@@ -26,8 +26,13 @@ fn parens(i: &str) -> IResult<&str, Expression> {
     Ok((i, expr))
 }
 
+fn identifier(i: &str) -> IResult<&str, Expression> {
+    let (i, id) = super::identifier(i)?;
+    Ok((i, Expression::Id(id.to_string())))
+}
+
 fn terminal(i: &str) -> IResult<&str, Expression> {
-    alt((parens, literal))(i)
+    alt((parens, literal, identifier))(i)
 }
 
 fn factor(i: &str) -> IResult<&str, Expression> {

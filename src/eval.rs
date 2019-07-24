@@ -23,8 +23,13 @@ impl Value {
     }
 }
 
-pub fn eval(expr: &Expression) -> Value {
+struct Context {
+    modules: HashMap<String, Module>,
+}
+
+pub fn eval(expr: &Expression, ctx: &Context) -> Value {
     match expr {
+        Expression::Id(id) => {}
         Expression::BinaryOp(op, a, b) => match op {
             BinaryOp::Multiply => Value::Int(eval(a).unwrap_int() * eval(b).unwrap_int()),
             BinaryOp::Divide => Value::Int(eval(a).unwrap_int() / eval(b).unwrap_int()),
@@ -68,5 +73,5 @@ pub fn eval(expr: &Expression) -> Value {
 
 pub fn run(main_module_name: &str, modules: &HashMap<String, Module>) -> Value {
     let main_module = modules.get(main_module_name).unwrap();
-    eval(&main_module.export.expr)
+    eval(&main_module.export.expr, modules)
 }

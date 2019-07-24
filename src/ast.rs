@@ -19,6 +19,7 @@ pub struct Export {
 pub enum Expression {
     Int(i64),
     Bool(bool),
+    Id(String),
     BinaryOp(BinaryOp, Box<Expression>, Box<Expression>),
     UnaryOp(UnaryOp, Box<Expression>),
     Conditional(Box<Expression>, Box<Expression>, Box<Expression>),
