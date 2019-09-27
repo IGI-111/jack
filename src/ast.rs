@@ -1,30 +1,12 @@
 #[derive(Debug, PartialEq)]
-pub struct Module {
-    pub name: String,
-    pub imports: Vec<Import>,
-    pub export: Export,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Import {
-    pub module: String,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Export {
-    pub expr: Expression,
-}
-
-#[derive(Debug, PartialEq)]
 pub enum Expression {
-    Int(i64),
+    Int(u64),
     Bool(bool),
     Id(String),
     BinaryOp(BinaryOp, Box<Expression>, Box<Expression>),
     UnaryOp(UnaryOp, Box<Expression>),
     Conditional(Box<Expression>, Box<Expression>, Box<Expression>),
 }
-
 #[derive(Debug, PartialEq)]
 pub enum UnaryOp {
     Minus,

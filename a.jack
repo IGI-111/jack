@@ -1,2 +1,5 @@
-import main
-export 10
+if 1 == 2 {
+	if true { 10 } else { 20 }
+} else {
+	30
+}
