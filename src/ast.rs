@@ -1,12 +1,12 @@
 #[derive(Debug, PartialEq)]
-pub enum Expression<N> {
+pub enum RawExpression {
     Int(u64),
     Bool(bool),
     // Array(Vec<Box<N>>),
     // Id(String),
-    BinaryOp(BinaryOp, Box<N>, Box<N>),
-    UnaryOp(UnaryOp, Box<N>),
-    Conditional(Box<N>, Box<N>, Box<N>),
+    BinaryOp(BinaryOp, Box<RawNode>, Box<RawNode>),
+    UnaryOp(UnaryOp, Box<RawNode>),
+    Conditional(Box<RawNode>, Box<RawNode>, Box<RawNode>),
 }
 #[derive(Debug, PartialEq)]
 pub enum UnaryOp {
@@ -32,26 +32,26 @@ pub enum BinaryOp {
 }
 
 pub trait Node: PartialEq + Sized {
-    fn expr(&self) -> &Expression<Self>;
-    fn into_expr(self) -> Expression<Self>;
+    fn expr(&self) -> &RawExpression;
+    fn into_expr(self) -> RawExpression;
 }
 
 #[derive(PartialEq, Debug)]
 pub struct RawNode {
-    expr: Expression<Self>,
+    expr: RawExpression,
 }
 
 impl RawNode {
-    pub fn new(expr: Expression<Self>) -> Self {
+    pub fn new(expr: RawExpression) -> Self {
         Self { expr }
     }
 }
 
 impl Node for RawNode {
-    fn expr(&self) -> &Expression<Self> {
+    fn expr(&self) -> &RawExpression {
         &self.expr
     }
-    fn into_expr(self) -> Expression<Self> {
+    fn into_expr(self) -> RawExpression {
         self.expr
     }
 }

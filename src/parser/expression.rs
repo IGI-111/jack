@@ -5,18 +5,17 @@ use nom::bytes::complete::tag;
 use nom::bytes::complete::take_while1;
 use nom::combinator::opt;
 use nom::multi::many0;
-use nom::multi::separated_list;
 use nom::sequence::tuple;
 use nom::IResult;
 
 fn int_literal(i: &str) -> IResult<&str, RawNode> {
     let (i, num) = take_while1(move |c: char| c.is_numeric())(i)?;
-    Ok((i, RawNode::new(Expression::Int(num.parse().unwrap()))))
+    Ok((i, RawNode::new(RawExpression::Int(num.parse().unwrap()))))
 }
 
 fn bool_literal(i: &str) -> IResult<&str, RawNode> {
     let (i, val) = alt((tag("true"), tag("false")))(i)?;
-    Ok((i, RawNode::new(Expression::Bool(val == "true"))))
+    Ok((i, RawNode::new(RawExpression::Bool(val == "true"))))
 }
 
 // fn array_literal(i: &str) -> IResult<&str, RawNode> {
@@ -29,7 +28,7 @@ fn bool_literal(i: &str) -> IResult<&str, RawNode> {
 //     ))(i)?;
 //     Ok((
 //         i,
-//         RawNode::new(Expression::Array(
+//         RawNode::new(RawExpression::Array(
 //             exprs.into_iter().map(|t| Box::new(t.1)).collect(),
 //         )),
 //     ))
@@ -46,7 +45,7 @@ fn parens(i: &str) -> IResult<&str, RawNode> {
 
 // fn identifier(i: &str) -> IResult<&str, RawNode> {
 //     let (i, id) = super::identifier(i)?;
-//     Ok((i, RawNode::new(Expression::Id(id.to_string()))))
+//     Ok((i, RawNode::new(RawExpression::Id(id.to_string()))))
 // }
 
 fn terminal(i: &str) -> IResult<&str, RawNode> {
@@ -58,8 +57,8 @@ fn deref_expr(i: &str) -> IResult<&str, RawNode> {
     Ok((
         i,
         ops.into_iter().rev().fold(expr, |prev, (op, _)| match op {
-            "-" => RawNode::new(Expression::UnaryOp(UnaryOp::Minus, Box::new(prev))),
-            "!" => RawNode::new(Expression::UnaryOp(UnaryOp::Not, Box::new(prev))),
+            "-" => RawNode::new(RawExpression::UnaryOp(UnaryOp::Minus, Box::new(prev))),
+            "!" => RawNode::new(RawExpression::UnaryOp(UnaryOp::Not, Box::new(prev))),
             _ => unreachable!(),
         }),
     ))
@@ -73,7 +72,7 @@ fn factor(i: &str) -> IResult<&str, RawNode> {
     //     remainder
     //         .into_iter()
     //         .fold(first, |prev, (_, op, _, next)| match op {
-    //             "!!" => RawNode::new(Expression::BinaryOp(
+    //             "!!" => RawNode::new(RawExpression::BinaryOp(
     //                 BinaryOp::ArrayDeref,
     //                 Box::new(prev),
     //                 Box::new(next),
@@ -94,12 +93,12 @@ fn term(i: &str) -> IResult<&str, RawNode> {
         remainder
             .into_iter()
             .fold(first, |prev, (_, op, _, next)| match op {
-                "*" => RawNode::new(Expression::BinaryOp(
+                "*" => RawNode::new(RawExpression::BinaryOp(
                     BinaryOp::Multiply,
                     Box::new(prev),
                     Box::new(next),
                 )),
-                "/" => RawNode::new(Expression::BinaryOp(
+                "/" => RawNode::new(RawExpression::BinaryOp(
                     BinaryOp::Divide,
                     Box::new(prev),
                     Box::new(next),
@@ -119,12 +118,12 @@ fn additive_expr(i: &str) -> IResult<&str, RawNode> {
         remainder
             .into_iter()
             .fold(first, |prev, (_, op, _, next)| match op {
-                "+" => RawNode::new(Expression::BinaryOp(
+                "+" => RawNode::new(RawExpression::BinaryOp(
                     BinaryOp::Add,
                     Box::new(prev),
                     Box::new(next),
                 )),
-                "-" => RawNode::new(Expression::BinaryOp(
+                "-" => RawNode::new(RawExpression::BinaryOp(
                     BinaryOp::Sub,
                     Box::new(prev),
                     Box::new(next),
@@ -150,22 +149,22 @@ fn relational_expr(i: &str) -> IResult<&str, RawNode> {
         remainder
             .into_iter()
             .fold(first, |prev, (_, op, eq, _, next)| match (op, eq) {
-                ("<", None) => RawNode::new(Expression::BinaryOp(
+                ("<", None) => RawNode::new(RawExpression::BinaryOp(
                     BinaryOp::LessThan,
                     Box::new(prev),
                     Box::new(next),
                 )),
-                ("<", Some("=")) => RawNode::new(Expression::BinaryOp(
+                ("<", Some("=")) => RawNode::new(RawExpression::BinaryOp(
                     BinaryOp::LessThanOrEqual,
                     Box::new(prev),
                     Box::new(next),
                 )),
-                (">", None) => RawNode::new(Expression::BinaryOp(
+                (">", None) => RawNode::new(RawExpression::BinaryOp(
                     BinaryOp::GreaterThan,
                     Box::new(prev),
                     Box::new(next),
                 )),
-                (">", Some("=")) => RawNode::new(Expression::BinaryOp(
+                (">", Some("=")) => RawNode::new(RawExpression::BinaryOp(
                     BinaryOp::GreaterThanOrEqual,
                     Box::new(prev),
                     Box::new(next),
@@ -190,12 +189,12 @@ fn equality_expr(i: &str) -> IResult<&str, RawNode> {
         remainder
             .into_iter()
             .fold(first, |prev, (_, op, _, next)| match op {
-                "==" => RawNode::new(Expression::BinaryOp(
+                "==" => RawNode::new(RawExpression::BinaryOp(
                     BinaryOp::Equal,
                     Box::new(prev),
                     Box::new(next),
                 )),
-                "!=" => RawNode::new(Expression::BinaryOp(
+                "!=" => RawNode::new(RawExpression::BinaryOp(
                     BinaryOp::NotEqual,
                     Box::new(prev),
                     Box::new(next),
@@ -215,7 +214,7 @@ fn logical_and_expr(i: &str) -> IResult<&str, RawNode> {
         remainder
             .into_iter()
             .fold(first, |prev, (_, _op, _, next)| {
-                RawNode::new(Expression::BinaryOp(
+                RawNode::new(RawExpression::BinaryOp(
                     BinaryOp::And,
                     Box::new(prev),
                     Box::new(next),
@@ -234,7 +233,7 @@ fn logical_or_expr(i: &str) -> IResult<&str, RawNode> {
         remainder
             .into_iter()
             .fold(first, |prev, (_, _op, _, next)| {
-                RawNode::new(Expression::BinaryOp(
+                RawNode::new(RawExpression::BinaryOp(
                     BinaryOp::Or,
                     Box::new(prev),
                     Box::new(next),
@@ -262,7 +261,7 @@ fn conditional_expr(i: &str) -> IResult<&str, RawNode> {
 
     Ok((
         i,
-        RawNode::new(Expression::Conditional(
+        RawNode::new(RawExpression::Conditional(
             Box::new(cond),
             Box::new(exp),
             Box::new(alt),
@@ -280,10 +279,10 @@ fn expression_test() {
         relational_expr("1 < 2"),
         Ok((
             "",
-            RawNode::new(Expression::BinaryOp(
+            RawNode::new(RawExpression::BinaryOp(
                 BinaryOp::LessThan,
-                Box::new(RawNode::new(Expression::Int(1))),
-                Box::new(RawNode::new(Expression::Int(2)))
+                Box::new(RawNode::new(RawExpression::Int(1))),
+                Box::new(RawNode::new(RawExpression::Int(2)))
             ))
         ))
     );
@@ -291,10 +290,10 @@ fn expression_test() {
         relational_expr("1 <= 2"),
         Ok((
             "",
-            RawNode::new(Expression::BinaryOp(
+            RawNode::new(RawExpression::BinaryOp(
                 BinaryOp::LessThanOrEqual,
-                Box::new(RawNode::new(Expression::Int(1))),
-                Box::new(RawNode::new(Expression::Int(2)))
+                Box::new(RawNode::new(RawExpression::Int(1))),
+                Box::new(RawNode::new(RawExpression::Int(2)))
             ))
         ))
     );
@@ -302,14 +301,14 @@ fn expression_test() {
         relational_expr("1 + 1 <= 2"),
         Ok((
             "",
-            RawNode::new(Expression::BinaryOp(
+            RawNode::new(RawExpression::BinaryOp(
                 BinaryOp::LessThanOrEqual,
-                Box::new(RawNode::new(Expression::BinaryOp(
+                Box::new(RawNode::new(RawExpression::BinaryOp(
                     BinaryOp::Add,
-                    Box::new(RawNode::new(Expression::Int(1))),
-                    Box::new(RawNode::new(Expression::Int(1)))
+                    Box::new(RawNode::new(RawExpression::Int(1))),
+                    Box::new(RawNode::new(RawExpression::Int(1)))
                 ))),
-                Box::new(RawNode::new(Expression::Int(2)))
+                Box::new(RawNode::new(RawExpression::Int(2)))
             ))
         ))
     );
@@ -317,17 +316,17 @@ fn expression_test() {
         relational_expr("1 + -1 <= 2"),
         Ok((
             "",
-            RawNode::new(Expression::BinaryOp(
+            RawNode::new(RawExpression::BinaryOp(
                 BinaryOp::LessThanOrEqual,
-                Box::new(RawNode::new(Expression::BinaryOp(
+                Box::new(RawNode::new(RawExpression::BinaryOp(
                     BinaryOp::Add,
-                    Box::new(RawNode::new(Expression::Int(1))),
-                    Box::new(RawNode::new(Expression::UnaryOp(
+                    Box::new(RawNode::new(RawExpression::Int(1))),
+                    Box::new(RawNode::new(RawExpression::UnaryOp(
                         UnaryOp::Minus,
-                        Box::new(RawNode::new(Expression::Int(1)))
+                        Box::new(RawNode::new(RawExpression::Int(1)))
                     )))
                 ))),
-                Box::new(RawNode::new(Expression::Int(2)))
+                Box::new(RawNode::new(RawExpression::Int(2)))
             ))
         ))
     );

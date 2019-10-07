@@ -6,24 +6,35 @@ pub enum Type {
     Bool,
 }
 
+#[derive(Debug, PartialEq)]
+pub enum TypedExpression {
+    Int(u64),
+    Bool(bool),
+    BinaryOp(BinaryOp, Box<TypedNode>, Box<TypedNode>),
+    UnaryOp(UnaryOp, Box<TypedNode>),
+    Conditional(Box<TypedNode>, Box<TypedNode>, Box<TypedNode>),
+}
+
 #[derive(PartialEq, Debug)]
 pub struct TypedNode {
     ty: Type,
-    expr: Expression<Self>,
+    expr: TypedExpression,
 }
 
 impl TypedNode {
     pub fn infer_types(node: RawNode) -> Self {
         let expr = match node.into_expr() {
-            Expression::Int(val) => Expression::Int(val),
-            Expression::Bool(val) => Expression::Bool(val),
-            Expression::BinaryOp(op, a, b) => Expression::BinaryOp(
+            RawExpression::Int(val) => TypedExpression::Int(val),
+            RawExpression::Bool(val) => TypedExpression::Bool(val),
+            RawExpression::BinaryOp(op, a, b) => TypedExpression::BinaryOp(
                 op,
                 Box::new(Self::infer_types(*a)),
                 Box::new(Self::infer_types(*b)),
             ),
-            Expression::UnaryOp(op, a) => Expression::UnaryOp(op, Box::new(Self::infer_types(*a))),
-            Expression::Conditional(cond, then, alt) => Expression::Conditional(
+            RawExpression::UnaryOp(op, a) => {
+                TypedExpression::UnaryOp(op, Box::new(Self::infer_types(*a)))
+            }
+            RawExpression::Conditional(cond, then, alt) => TypedExpression::Conditional(
                 Box::new(Self::infer_types(*cond)),
                 Box::new(Self::infer_types(*then)),
                 Box::new(Self::infer_types(*alt)),
@@ -31,9 +42,9 @@ impl TypedNode {
         };
 
         let ty = match &expr {
-            Expression::Int(_) => Type::Int,
-            Expression::Bool(_) => Type::Bool,
-            Expression::UnaryOp(op, a) => match op {
+            TypedExpression::Int(_) => Type::Int,
+            TypedExpression::Bool(_) => Type::Bool,
+            TypedExpression::UnaryOp(op, a) => match op {
                 UnaryOp::Minus => {
                     assert_eq!(a.ty(), &Type::Int);
                     Type::Int
@@ -43,7 +54,7 @@ impl TypedNode {
                     Type::Bool
                 }
             },
-            Expression::BinaryOp(op, a, b) => match op {
+            TypedExpression::BinaryOp(op, a, b) => match op {
                 BinaryOp::Multiply | BinaryOp::Divide | BinaryOp::Add | BinaryOp::Sub => {
                     assert_eq!(a.ty(), &Type::Int);
                     assert_eq!(b.ty(), &Type::Int);
@@ -67,7 +78,7 @@ impl TypedNode {
                     Type::Bool
                 }
             },
-            Expression::Conditional(cond, then, alt) => {
+            TypedExpression::Conditional(cond, then, alt) => {
                 assert_eq!(cond.ty(), &Type::Bool);
                 assert_eq!(then.ty(), alt.ty());
                 then.ty().clone()
@@ -79,13 +90,7 @@ impl TypedNode {
     pub fn ty(&self) -> &Type {
         &self.ty
     }
-}
-
-impl Node for TypedNode {
-    fn expr(&self) -> &Expression<Self> {
+    pub fn expr(&self) -> &TypedExpression {
         &self.expr
-    }
-    fn into_expr(self) -> Expression<Self> {
-        self.expr
     }
 }
