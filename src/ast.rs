@@ -2,7 +2,7 @@
 pub enum RawExpression {
     Int(u64),
     Bool(bool),
-    // Array(Vec<Box<N>>),
+    Array(Vec<Box<RawNode>>),
     // Id(String),
     BinaryOp(BinaryOp, Box<RawNode>, Box<RawNode>),
     UnaryOp(UnaryOp, Box<RawNode>),
@@ -28,7 +28,7 @@ pub enum BinaryOp {
     NotEqual,
     And,
     Or,
-    // ArrayDeref,
+    ArrayDeref,
 }
 
 pub trait Node: PartialEq + Sized {

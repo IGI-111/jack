@@ -1,10 +1,9 @@
 use super::sp;
 use crate::ast::*;
 use nom::branch::alt;
-use nom::bytes::complete::tag;
-use nom::bytes::complete::take_while1;
+use nom::bytes::complete::{tag, take_while1};
 use nom::combinator::opt;
-use nom::multi::many0;
+use nom::multi::{many0, separated_list};
 use nom::sequence::tuple;
 use nom::IResult;
 
@@ -18,24 +17,24 @@ fn bool_literal(i: &str) -> IResult<&str, RawNode> {
     Ok((i, RawNode::new(RawExpression::Bool(val == "true"))))
 }
 
-// fn array_literal(i: &str) -> IResult<&str, RawNode> {
-//     let (i, (_, _, exprs, _, _)) = tuple((
-//         tag("["),
-//         sp,
-//         separated_list(tag(","), tuple((sp, expression, sp))),
-//         sp,
-//         tag("]"),
-//     ))(i)?;
-//     Ok((
-//         i,
-//         RawNode::new(RawExpression::Array(
-//             exprs.into_iter().map(|t| Box::new(t.1)).collect(),
-//         )),
-//     ))
-// }
+fn array_literal(i: &str) -> IResult<&str, RawNode> {
+    let (i, (_, _, exprs, _, _)) = tuple((
+        tag("["),
+        sp,
+        separated_list(tag(","), tuple((sp, expression, sp))),
+        sp,
+        tag("]"),
+    ))(i)?;
+    Ok((
+        i,
+        RawNode::new(RawExpression::Array(
+            exprs.into_iter().map(|t| Box::new(t.1)).collect(),
+        )),
+    ))
+}
 
 fn literal(i: &str) -> IResult<&str, RawNode> {
-    alt((int_literal, bool_literal))(i)
+    alt((int_literal, bool_literal, array_literal))(i)
 }
 
 fn parens(i: &str) -> IResult<&str, RawNode> {
@@ -65,22 +64,21 @@ fn deref_expr(i: &str) -> IResult<&str, RawNode> {
 }
 
 fn factor(i: &str) -> IResult<&str, RawNode> {
-    // let (i, (first, remainder)) =
-    //     tuple((deref_expr, many0(tuple((sp, tag("!!"), sp, deref_expr)))))(i)?;
-    // Ok((
-    //     i,
-    //     remainder
-    //         .into_iter()
-    //         .fold(first, |prev, (_, op, _, next)| match op {
-    //             "!!" => RawNode::new(RawExpression::BinaryOp(
-    //                 BinaryOp::ArrayDeref,
-    //                 Box::new(prev),
-    //                 Box::new(next),
-    //             )),
-    //             _ => unreachable!(),
-    //         }),
-    // ))
-    deref_expr(i)
+    let (i, (first, remainder)) =
+        tuple((deref_expr, many0(tuple((sp, tag("!!"), sp, deref_expr)))))(i)?;
+    Ok((
+        i,
+        remainder
+            .into_iter()
+            .fold(first, |prev, (_, op, _, next)| match op {
+                "!!" => RawNode::new(RawExpression::BinaryOp(
+                    BinaryOp::ArrayDeref,
+                    Box::new(prev),
+                    Box::new(next),
+                )),
+                _ => unreachable!(),
+            }),
+    ))
 }
 
 fn term(i: &str) -> IResult<&str, RawNode> {

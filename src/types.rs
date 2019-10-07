@@ -1,15 +1,27 @@
 use crate::ast::*;
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     Int,
     Bool,
+    Array(u64, Box<Type>),
 }
+
+// impl PartialEq for Type {
+//     fn eq(&self, other: &Self) -> bool {
+//         match (self, other) {
+//             (Type::Int, Type::Int) | (Type::Bool, Type::Bool) => true,
+//             (Type::Array(a), Type::Array(b)) => **a == **b,
+//             _ => false,
+//         }
+//     }
+// }
 
 #[derive(Debug, PartialEq)]
 pub enum TypedExpression {
     Int(u64),
     Bool(bool),
+    Array(Vec<Box<TypedNode>>),
     BinaryOp(BinaryOp, Box<TypedNode>, Box<TypedNode>),
     UnaryOp(UnaryOp, Box<TypedNode>),
     Conditional(Box<TypedNode>, Box<TypedNode>, Box<TypedNode>),
@@ -26,6 +38,11 @@ impl TypedNode {
         let expr = match node.into_expr() {
             RawExpression::Int(val) => TypedExpression::Int(val),
             RawExpression::Bool(val) => TypedExpression::Bool(val),
+            RawExpression::Array(val) => TypedExpression::Array(
+                val.into_iter()
+                    .map(|n| Box::new(Self::infer_types(*n)))
+                    .collect(),
+            ),
             RawExpression::BinaryOp(op, a, b) => TypedExpression::BinaryOp(
                 op,
                 Box::new(Self::infer_types(*a)),
@@ -44,6 +61,17 @@ impl TypedNode {
         let ty = match &expr {
             TypedExpression::Int(_) => Type::Int,
             TypedExpression::Bool(_) => Type::Bool,
+            TypedExpression::Array(vals) => {
+                let inner_type = if vals.len() > 0 {
+                    vals[0].ty().clone()
+                } else {
+                    Type::Int
+                };
+                for val in vals.iter() {
+                    assert_eq!(val.ty(), &inner_type);
+                }
+                Type::Array(vals.len() as u64, Box::new(inner_type))
+            }
             TypedExpression::UnaryOp(op, a) => match op {
                 UnaryOp::Minus => {
                     assert_eq!(a.ty(), &Type::Int);
@@ -76,6 +104,17 @@ impl TypedNode {
                     assert_eq!(a.ty(), &Type::Bool);
                     assert_eq!(b.ty(), &Type::Bool);
                     Type::Bool
+                }
+                BinaryOp::ArrayDeref => {
+                    if let Type::Array(_, elem_type) = a.ty() {
+                        if let TypedExpression::Int(_) = b.expr() {
+                            (**elem_type).clone()
+                        } else {
+                            panic!("Cannot index by anything else than a literal integer");
+                        }
+                    } else {
+                        panic!(format!("{:?} is not an array", a.ty()))
+                    }
                 }
             },
             TypedExpression::Conditional(cond, then, alt) => {
