@@ -65,7 +65,7 @@ fn deref_expr(i: &str) -> IResult<&str, RawNode> {
 
 fn factor(i: &str) -> IResult<&str, RawNode> {
     let (i, (first, remainder)) =
-        tuple((deref_expr, many0(tuple((sp, tag("!!"), sp, deref_expr)))))(i)?;
+        tuple((deref_expr, many0(tuple((sp, tag("!!"), sp, int_literal)))))(i)?;
     Ok((
         i,
         remainder
