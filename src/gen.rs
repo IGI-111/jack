@@ -2,6 +2,7 @@ use crate::ast::*;
 use crate::types::*;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
+use inkwell::module::Module;
 use inkwell::types::BasicTypeEnum;
 use inkwell::values::{ArrayValue, BasicValue, BasicValueEnum, FunctionValue, IntValue};
 use inkwell::IntPredicate;
@@ -33,7 +34,7 @@ impl Realizable for Type {
     }
 }
 
-pub fn generate(root: &TypedNode) {
+pub fn generate(root: &TypedNode) -> Module {
     let context = Context::create();
     let module = context.create_module("main");
     let builder = context.create_builder();
@@ -60,7 +61,7 @@ pub fn generate(root: &TypedNode) {
 
     ctx.builder.build_return(Some(&ret_val));
 
-    module.print_to_file("out.bc").unwrap();
+    module
 }
 
 fn eval(root: &TypedNode, ctx: &GenerationContext) -> BasicValueEnum {

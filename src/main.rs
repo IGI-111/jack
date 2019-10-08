@@ -2,11 +2,12 @@ extern crate inkwell;
 extern crate nom;
 
 mod ast;
-mod eval;
+mod gen;
 mod parser;
 mod types;
 
-use eval::generate;
+use gen::generate;
+use inkwell::OptimizationLevel;
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -36,7 +37,12 @@ fn main() {
 
     let typed_ast = types::TypedNode::infer_types(ast);
 
-    println!("{:#?}, {:?}", typed_ast, rem);
-
-    generate(&typed_ast);
+    let module = generate(&typed_ast);
+    let ee = module
+        .create_jit_execution_engine(OptimizationLevel::Default)
+        .unwrap();
+    unsafe {
+        let res = ee.run_function_as_main(&module.get_function("main").unwrap(), &[]);
+        println!("{}", res);
+    }
 }
