@@ -6,7 +6,7 @@ mod gen;
 mod parser;
 mod types;
 
-use gen::generate;
+use gen::gen;
 use inkwell::OptimizationLevel;
 use std::env;
 use std::fs::File;
@@ -37,7 +37,7 @@ fn main() {
 
     let typed_ast = types::TypedNode::infer_types(ast);
 
-    let module = generate(&typed_ast);
+    let module = gen(&typed_ast);
     let ee = module
         .create_jit_execution_engine(OptimizationLevel::Default)
         .unwrap();
