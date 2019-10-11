@@ -1,6 +1,3 @@
-extern crate inkwell;
-extern crate nom;
-
 mod ast;
 mod gen;
 mod parser;
@@ -41,8 +38,8 @@ fn main() {
     let ee = module
         .create_jit_execution_engine(OptimizationLevel::Default)
         .unwrap();
-    unsafe {
-        let res = ee.run_function_as_main(&module.get_function("main").unwrap(), &[]);
-        println!("{}", res);
-    }
+
+    let function = module.get_function("main").unwrap();
+    let res = unsafe { ee.run_function_as_main(&function, &[]) };
+    println!("{:?}", res);
 }
