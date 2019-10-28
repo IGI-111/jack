@@ -48,7 +48,7 @@ fn parens(i: &str) -> IResult<&str, RawNode> {
 // }
 
 fn terminal(i: &str) -> IResult<&str, RawNode> {
-    alt((parens, literal /*identifier*/))(i)
+    alt((parens, literal))(i) //identifier))(i)
 }
 
 fn deref_expr(i: &str) -> IResult<&str, RawNode> {
@@ -64,19 +64,20 @@ fn deref_expr(i: &str) -> IResult<&str, RawNode> {
 }
 
 fn factor(i: &str) -> IResult<&str, RawNode> {
-    let (i, (first, remainder)) =
-        tuple((deref_expr, many0(tuple((sp, tag("!!"), sp, int_literal)))))(i)?;
+    let (i, (first, remainder)) = tuple((
+        deref_expr,
+        many0(tuple((sp, tag("["), sp, int_literal, sp, tag("]")))),
+    ))(i)?;
     Ok((
         i,
         remainder
             .into_iter()
-            .fold(first, |prev, (_, op, _, next)| match op {
-                "!!" => RawNode::new(RawExpression::BinaryOp(
+            .fold(first, |prev, (_, _, _, next, _, _)| {
+                RawNode::new(RawExpression::BinaryOp(
                     BinaryOp::ArrayDeref,
                     Box::new(prev),
                     Box::new(next),
-                )),
-                _ => unreachable!(),
+                ))
             }),
     ))
 }

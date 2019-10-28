@@ -1,3 +1,10 @@
+use crate::types::Type;
+
+pub struct RawFunction {
+    pub name: String,
+    pub root: RawNode,
+}
+
 #[derive(Debug, PartialEq)]
 pub enum RawExpression {
     Int(u64),

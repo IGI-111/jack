@@ -30,6 +30,7 @@ impl Realizable for Type {
                 | BasicTypeEnum::VectorType(_)
                 | BasicTypeEnum::StructType(_) => panic!(),
             }),
+            Type::Function(_) => panic!("Function types are not Basic types"),
         }
     }
 }
@@ -42,18 +43,21 @@ fn build_noop(ctx: &GenerationContext) {
     );
 }
 
-pub fn gen(root: &TypedNode) -> Module {
+pub fn gen(fun: &TypedFunction) -> Module {
     let context = Context::create();
     let module = context.create_module("main");
     let builder = context.create_builder();
 
-    let fn_type = match root.ty() {
-        Type::Bool => context.bool_type().fn_type(&[], false),
-        Type::Int => context.i64_type().fn_type(&[], false),
-        Type::Array(_, _) => panic!("Can't return an Array from main"),
+    let fn_name = fun.name();
+    let fn_type = match fun.ty() {
+        Type::Function(ty) => match **ty {
+            Type::Int => ty.real_type(&context).into_int_type().fn_type(&[], false),
+            _ => panic!("Function does not return integer type"),
+        },
+        _ => panic!("Function does not have a function type"),
     };
 
-    let function = module.add_function("main", fn_type, None);
+    let function = module.add_function(fn_name, fn_type, None);
     let ctx = GenerationContext {
         context,
         builder,
@@ -62,7 +66,7 @@ pub fn gen(root: &TypedNode) -> Module {
 
     let main_block = ctx.context.append_basic_block(&function, "");
     ctx.builder.position_at_end(&main_block);
-    let ret_val = match gen_expr(root, &ctx) {
+    let ret_val = match gen_expr(fun.root(), &ctx) {
         BasicValueEnum::IntValue(val) => val,
         _ => unreachable!(),
     };
@@ -168,10 +172,10 @@ fn gen_expr(root: &TypedNode, ctx: &GenerationContext) -> BasicValueEnum {
                 "",
             )),
         },
-        TypedExpression::Conditional(cond, then, alt) => generate_conditional(cond, then, alt, ctx),
+        TypedExpression::Conditional(cond, then, alt) => gen_conditional(cond, then, alt, ctx),
     }
 }
-fn generate_conditional(
+fn gen_conditional(
     cond: &TypedNode,
     then: &TypedNode,
     alt: &TypedNode,

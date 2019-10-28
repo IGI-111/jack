@@ -5,6 +5,7 @@ pub enum Type {
     Int,
     Bool,
     Array(u64, Box<Type>),
+    Function(Box<Type>),
 }
 
 // impl PartialEq for Type {
@@ -25,6 +26,31 @@ pub enum TypedExpression {
     BinaryOp(BinaryOp, Box<TypedNode>, Box<TypedNode>),
     UnaryOp(UnaryOp, Box<TypedNode>),
     Conditional(Box<TypedNode>, Box<TypedNode>, Box<TypedNode>),
+}
+
+#[derive(PartialEq, Debug)]
+pub struct TypedFunction {
+    name: String,
+    root: TypedNode,
+    ty: Type,
+}
+
+impl TypedFunction {
+    pub fn infer_types(fun: RawFunction) -> Self {
+        let name = fun.name.to_string();
+        let root = TypedNode::infer_types(fun.root);
+        let ty = Type::Function(Box::new(root.ty().clone()));
+        Self { root, name, ty }
+    }
+    pub fn ty(&self) -> &Type {
+        &self.ty
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    pub fn root(&self) -> &TypedNode {
+        &self.root
+    }
 }
 
 #[derive(PartialEq, Debug)]

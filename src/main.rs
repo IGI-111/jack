@@ -21,7 +21,7 @@ fn main() {
     file.read_to_string(&mut text)
         .expect(&format!("Can't read file: {}", path.display()));
 
-    let (rem, ast) = match parser::expression(&text) {
+    let (rem, function) = match parser::function(&text) {
         Ok(res) => res,
         Err(e) => panic!(format!("{:?}", e)),
     };
@@ -32,9 +32,9 @@ fn main() {
         ))
     }
 
-    let typed_ast = types::TypedNode::infer_types(ast);
+    let typed_function = types::TypedFunction::infer_types(function);
 
-    let module = gen(&typed_ast);
+    let module = gen(&typed_function);
     let ee = module
         .create_jit_execution_engine(OptimizationLevel::Default)
         .unwrap();

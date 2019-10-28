@@ -1,5 +1,7 @@
-(if 1 == 1 then
-	[1, 2, 3, 4]
-else
-	[2,3,4,5]
-end) !! 2
+fn main()
+	if true then
+		42
+	else
+		9999
+	end
+end
