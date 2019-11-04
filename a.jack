@@ -1,5 +1,9 @@
-fn main()
-	if true then
+fn fun(): bool
+	true
+end
+
+fn main(): int
+	if fun() then
 		42
 	else
 		9999

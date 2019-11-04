@@ -3,6 +3,7 @@ use crate::types::Type;
 pub struct RawFunction {
     pub name: String,
     pub root: RawNode,
+    pub ty: Type,
 }
 
 #[derive(Debug, PartialEq)]
@@ -10,18 +11,19 @@ pub enum RawExpression {
     Int(u64),
     Bool(bool),
     Array(Vec<Box<RawNode>>),
+    FunCall(String, Vec<Box<RawNode>>),
     // Id(String),
     BinaryOp(BinaryOp, Box<RawNode>, Box<RawNode>),
     UnaryOp(UnaryOp, Box<RawNode>),
     Conditional(Box<RawNode>, Box<RawNode>, Box<RawNode>),
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum UnaryOp {
     Minus,
     Not,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum BinaryOp {
     Multiply,
     Divide,

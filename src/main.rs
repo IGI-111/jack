@@ -21,20 +21,24 @@ fn main() {
     file.read_to_string(&mut text)
         .expect(&format!("Can't read file: {}", path.display()));
 
-    let (rem, function) = match parser::function(&text) {
+    let (rem, functions) = match parser::program(&text) {
         Ok(res) => res,
         Err(e) => panic!(format!("{:?}", e)),
     };
-    if rem != "\n" {
+    if rem != "" {
         panic!(format!(
             "Cant completely parse program. Remaining: {:?}",
             rem
         ))
     }
 
-    let typed_function = types::TypedFunction::infer_types(function);
+    let typed_functions = functions
+        .iter()
+        .map(|func| types::TypedFunction::infer_types(func, &functions))
+        .collect::<Vec<_>>();
 
-    let module = gen(&typed_function);
+    let module = gen(&typed_functions);
+    module.print_to_stderr();
     let ee = module
         .create_jit_execution_engine(OptimizationLevel::Default)
         .unwrap();

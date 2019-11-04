@@ -6,11 +6,13 @@ use inkwell::module::Module;
 use inkwell::types::BasicTypeEnum;
 use inkwell::values::{ArrayValue, BasicValue, BasicValueEnum, FunctionValue, IntValue};
 use inkwell::IntPredicate;
+use std::collections::HashMap;
 
-struct GenerationContext {
-    pub builder: Builder,
-    pub context: Context,
-    pub function: FunctionValue,
+struct GenerationContext<'a> {
+    pub builder: &'a Builder,
+    pub context: &'a Context,
+    pub function: &'a FunctionValue,
+    pub functions: &'a HashMap<String, (FunctionValue, &'a TypedFunction)>,
 }
 
 trait Realizable {
@@ -43,41 +45,59 @@ fn build_noop(ctx: &GenerationContext) {
     );
 }
 
-pub fn gen(fun: &TypedFunction) -> Module {
+pub fn gen(funcs: &[TypedFunction]) -> Module {
     let context = Context::create();
     let module = context.create_module("main");
     let builder = context.create_builder();
 
-    let fn_name = fun.name();
-    let fn_type = match fun.ty() {
-        Type::Function(ty) => match **ty {
-            Type::Int => ty.real_type(&context).into_int_type().fn_type(&[], false),
-            _ => panic!("Function does not return integer type"),
-        },
-        _ => panic!("Function does not have a function type"),
-    };
+    let functions = funcs
+        .iter()
+        .map(|fun| {
+            let fn_name = fun.name();
+            let fn_type = match fun.ty() {
+                Type::Function(ty) => match **ty {
+                    Type::Int => ty.real_type(&context).into_int_type().fn_type(&[], false),
+                    Type::Bool => ty.real_type(&context).into_int_type().fn_type(&[], false),
+                    _ => panic!("Function does not return integer type"),
+                },
+                _ => panic!("Function does not have a function type"),
+            };
+            (
+                fn_name.to_string(),
+                (module.add_function(fn_name, fn_type, None), fun),
+            )
+        })
+        .collect::<HashMap<_, _>>();
 
-    let function = module.add_function(fn_name, fn_type, None);
-    let ctx = GenerationContext {
-        context,
-        builder,
-        function,
-    };
+    for (function, fun) in functions.values() {
+        let ctx = GenerationContext {
+            context: &context,
+            builder: &builder,
+            function: &function,
+            functions: &functions,
+        };
 
-    let main_block = ctx.context.append_basic_block(&function, "");
-    ctx.builder.position_at_end(&main_block);
-    let ret_val = match gen_expr(fun.root(), &ctx) {
-        BasicValueEnum::IntValue(val) => val,
-        _ => unreachable!(),
-    };
+        let main_block = ctx.context.append_basic_block(&function, "");
+        ctx.builder.position_at_end(&main_block);
+        let ret_val = match gen_expr(fun.root(), &ctx) {
+            BasicValueEnum::IntValue(val) => val,
+            _ => unreachable!(),
+        };
 
-    ctx.builder.build_return(Some(&ret_val));
+        ctx.builder.build_return(Some(&ret_val));
+    }
 
     module
 }
 
 fn gen_expr(root: &TypedNode, ctx: &GenerationContext) -> BasicValueEnum {
     match root.expr() {
+        TypedExpression::FunCall(name, _args) => ctx
+            .builder
+            .build_call(ctx.functions.get(name).unwrap().0, &[], "")
+            .try_as_basic_value()
+            .left()
+            .expect("Callsite is not convertible to a BasicValue"),
         TypedExpression::Array(vals) => gen_array(vals, root.ty(), ctx),
         TypedExpression::Bool(val) => BasicValueEnum::IntValue(
             ctx.context

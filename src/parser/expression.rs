@@ -1,5 +1,6 @@
 use super::sp;
 use crate::ast::*;
+use crate::types::Type;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while1};
 use nom::combinator::opt;
@@ -42,13 +43,21 @@ fn parens(i: &str) -> IResult<&str, RawNode> {
     Ok((i, expr))
 }
 
+fn fun_call(i: &str) -> IResult<&str, RawNode> {
+    let (i, (id, _, _, _, _)) = tuple((super::identifier, sp, tag("("), sp, tag(")")))(i)?;
+    Ok((
+        i,
+        RawNode::new(RawExpression::FunCall(id.to_string(), Vec::new())),
+    ))
+}
+
 // fn identifier(i: &str) -> IResult<&str, RawNode> {
 //     let (i, id) = super::identifier(i)?;
 //     Ok((i, RawNode::new(RawExpression::Id(id.to_string()))))
 // }
 
 fn terminal(i: &str) -> IResult<&str, RawNode> {
-    alt((parens, literal))(i) //identifier))(i)
+    alt((parens, literal, fun_call))(i) //identifier))(i)
 }
 
 fn deref_expr(i: &str) -> IResult<&str, RawNode> {

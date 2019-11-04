@@ -23,6 +23,7 @@ pub enum TypedExpression {
     Int(u64),
     Bool(bool),
     Array(Vec<Box<TypedNode>>),
+    FunCall(String, Vec<Box<TypedNode>>),
     BinaryOp(BinaryOp, Box<TypedNode>, Box<TypedNode>),
     UnaryOp(UnaryOp, Box<TypedNode>),
     Conditional(Box<TypedNode>, Box<TypedNode>, Box<TypedNode>),
@@ -36,10 +37,14 @@ pub struct TypedFunction {
 }
 
 impl TypedFunction {
-    pub fn infer_types(fun: RawFunction) -> Self {
+    pub fn infer_types(fun: &RawFunction, funcs: &[RawFunction]) -> Self {
         let name = fun.name.to_string();
-        let root = TypedNode::infer_types(fun.root);
-        let ty = Type::Function(Box::new(root.ty().clone()));
+        let root = TypedNode::infer_types(&fun.root, funcs);
+        let (ty, return_type) = match &fun.ty {
+            Type::Function(ret) => (Type::Function(ret.clone()), (**ret).clone()),
+            _ => panic!("Function with a non Function type"),
+        };
+        assert_eq!(root.ty(), &return_type);
         Self { root, name, ty }
     }
     pub fn ty(&self) -> &Type {
@@ -60,33 +65,49 @@ pub struct TypedNode {
 }
 
 impl TypedNode {
-    pub fn infer_types(node: RawNode) -> Self {
-        let expr = match node.into_expr() {
-            RawExpression::Int(val) => TypedExpression::Int(val),
-            RawExpression::Bool(val) => TypedExpression::Bool(val),
+    pub fn infer_types(node: &RawNode, funcs: &[RawFunction]) -> Self {
+        let expr = match node.expr() {
+            RawExpression::Int(val) => TypedExpression::Int(*val),
+            RawExpression::Bool(val) => TypedExpression::Bool(*val),
             RawExpression::Array(val) => TypedExpression::Array(
                 val.into_iter()
-                    .map(|n| Box::new(Self::infer_types(*n)))
+                    .map(|n| Box::new(Self::infer_types(&*n, funcs)))
                     .collect(),
             ),
             RawExpression::BinaryOp(op, a, b) => TypedExpression::BinaryOp(
-                op,
-                Box::new(Self::infer_types(*a)),
-                Box::new(Self::infer_types(*b)),
+                op.clone(),
+                Box::new(Self::infer_types(&*a, funcs)),
+                Box::new(Self::infer_types(&*b, funcs)),
             ),
             RawExpression::UnaryOp(op, a) => {
-                TypedExpression::UnaryOp(op, Box::new(Self::infer_types(*a)))
+                TypedExpression::UnaryOp(op.clone(), Box::new(Self::infer_types(&*a, funcs)))
             }
             RawExpression::Conditional(cond, then, alt) => TypedExpression::Conditional(
-                Box::new(Self::infer_types(*cond)),
-                Box::new(Self::infer_types(*then)),
-                Box::new(Self::infer_types(*alt)),
+                Box::new(Self::infer_types(&*cond, funcs)),
+                Box::new(Self::infer_types(&*then, funcs)),
+                Box::new(Self::infer_types(&*alt, funcs)),
+            ),
+            RawExpression::FunCall(id, args) => TypedExpression::FunCall(
+                id.to_string(),
+                args.into_iter()
+                    .map(|a| Box::new(Self::infer_types(&*a, funcs)))
+                    .collect::<Vec<_>>(),
             ),
         };
 
         let ty = match &expr {
             TypedExpression::Int(_) => Type::Int,
             TypedExpression::Bool(_) => Type::Bool,
+            TypedExpression::FunCall(id, _) => {
+                let fun_def = funcs
+                    .iter()
+                    .find(|f| &f.name == id)
+                    .expect("Unknown function");
+                match &fun_def.ty {
+                    Type::Function(ret) => (**ret).clone(),
+                    _ => panic!("Function with a non Function type"),
+                }
+            }
             TypedExpression::Array(vals) => {
                 let inner_type = if vals.len() > 0 {
                     vals[0].ty().clone()
