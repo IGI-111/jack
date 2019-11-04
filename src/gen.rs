@@ -3,6 +3,7 @@ use crate::types::*;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
+use inkwell::types::BasicType;
 use inkwell::types::BasicTypeEnum;
 use inkwell::values::{ArrayValue, BasicValue, BasicValueEnum, FunctionValue, IntValue};
 use inkwell::IntPredicate;
@@ -32,7 +33,7 @@ impl Realizable for Type {
                 | BasicTypeEnum::VectorType(_)
                 | BasicTypeEnum::StructType(_) => panic!(),
             }),
-            Type::Function(_) => panic!("Function types are not Basic types"),
+            Type::Function(_, _) => panic!("Function types are not Basic types"),
         }
     }
 }
@@ -55,9 +56,19 @@ pub fn gen(funcs: &[TypedFunction]) -> Module {
         .map(|fun| {
             let fn_name = fun.name();
             let fn_type = match fun.ty() {
-                Type::Function(ty) => match **ty {
-                    Type::Int => ty.real_type(&context).into_int_type().fn_type(&[], false),
-                    Type::Bool => ty.real_type(&context).into_int_type().fn_type(&[], false),
+                Type::Function(ty, args) => match **ty {
+                    Type::Bool | Type::Int => ty.real_type(&context).into_int_type().fn_type(
+                        &args
+                            .into_iter()
+                            .map(|arg| match **arg {
+                                Type::Bool | Type::Int => {
+                                    arg.real_type(&context).into_int_type().as_basic_type_enum()
+                                }
+                                _ => panic!("Argument of function is not integer type"),
+                            })
+                            .collect::<Vec<_>>(),
+                        false,
+                    ),
                     _ => panic!("Function does not return integer type"),
                 },
                 _ => panic!("Function does not have a function type"),

@@ -5,7 +5,16 @@ pub enum Type {
     Int,
     Bool,
     Array(u64, Box<Type>),
-    Function(Box<Type>),
+    Function(Box<Type>, Vec<Box<Type>>),
+}
+
+impl Type {
+    pub fn as_function(&self) -> (&Box<Type>, &Vec<Box<Type>>) {
+        match self {
+            Type::Function(ret, args) => (&ret, &args),
+            _ => panic!("Not a Function type"),
+        }
+    }
 }
 
 // impl PartialEq for Type {
@@ -40,11 +49,9 @@ impl TypedFunction {
     pub fn infer_types(fun: &RawFunction, funcs: &[RawFunction]) -> Self {
         let name = fun.name.to_string();
         let root = TypedNode::infer_types(&fun.root, funcs);
-        let (ty, return_type) = match &fun.ty {
-            Type::Function(ret) => (Type::Function(ret.clone()), (**ret).clone()),
-            _ => panic!("Function with a non Function type"),
-        };
-        assert_eq!(root.ty(), &return_type);
+        let (ret, args) = fun.ty.as_function();
+        assert_eq!(root.ty(), &**ret);
+        let ty = Type::Function(ret.clone(), args.clone());
         Self { root, name, ty }
     }
     pub fn ty(&self) -> &Type {
@@ -98,15 +105,19 @@ impl TypedNode {
         let ty = match &expr {
             TypedExpression::Int(_) => Type::Int,
             TypedExpression::Bool(_) => Type::Bool,
-            TypedExpression::FunCall(id, _) => {
+            TypedExpression::FunCall(id, args) => {
                 let fun_def = funcs
                     .iter()
                     .find(|f| &f.name == id)
                     .expect("Unknown function");
-                match &fun_def.ty {
-                    Type::Function(ret) => (**ret).clone(),
-                    _ => panic!("Function with a non Function type"),
+
+                let (ret, argdefs) = fun_def.ty.as_function();
+                assert_eq!(args.len(), argdefs.len());
+
+                for (arg_type, arg_node) in argdefs.iter().zip(args.iter()) {
+                    assert_eq!(&**arg_type, arg_node.ty());
                 }
+                (**ret).clone()
             }
             TypedExpression::Array(vals) => {
                 let inner_type = if vals.len() > 0 {

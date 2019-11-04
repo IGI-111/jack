@@ -3,6 +3,7 @@ use crate::types::Type;
 pub struct RawFunction {
     pub name: String,
     pub root: RawNode,
+    pub args: Vec<(String, Type)>,
     pub ty: Type,
 }
 

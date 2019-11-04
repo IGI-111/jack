@@ -5,6 +5,7 @@ mod types;
 
 use gen::gen;
 use inkwell::OptimizationLevel;
+use std::collections::HashSet;
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -30,6 +31,11 @@ fn main() {
             "Cant completely parse program. Remaining: {:?}",
             rem
         ))
+    }
+
+    let mut uniq = HashSet::new();
+    if !functions.iter().all(|x| uniq.insert(x.name.clone())) {
+        panic!("Duplicate function name");
     }
 
     let typed_functions = functions

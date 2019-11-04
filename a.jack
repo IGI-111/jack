@@ -3,9 +3,13 @@ fn fun(): bool
 end
 
 fn main(): int
-	if fun() then
-		42
+	if true then
+		if fun() then
+			1
+		else
+			9999
+		end
 	else
-		9999
+		42
 	end
 end

@@ -22,14 +22,14 @@ fn array_literal(i: &str) -> IResult<&str, RawNode> {
     let (i, (_, _, exprs, _, _)) = tuple((
         tag("["),
         sp,
-        separated_list(tag(","), tuple((sp, expression, sp))),
+        separated_list(tuple((sp, tag(","), sp)), expression),
         sp,
         tag("]"),
     ))(i)?;
     Ok((
         i,
         RawNode::new(RawExpression::Array(
-            exprs.into_iter().map(|t| Box::new(t.1)).collect(),
+            exprs.into_iter().map(Box::new).collect(),
         )),
     ))
 }
@@ -44,10 +44,21 @@ fn parens(i: &str) -> IResult<&str, RawNode> {
 }
 
 fn fun_call(i: &str) -> IResult<&str, RawNode> {
-    let (i, (id, _, _, _, _)) = tuple((super::identifier, sp, tag("("), sp, tag(")")))(i)?;
+    let (i, (id, _, _, _, args, _, _)) = tuple((
+        super::identifier,
+        sp,
+        tag("("),
+        sp,
+        separated_list(tuple((sp, tag(","), sp)), expression),
+        sp,
+        tag(")"),
+    ))(i)?;
     Ok((
         i,
-        RawNode::new(RawExpression::FunCall(id.to_string(), Vec::new())),
+        RawNode::new(RawExpression::FunCall(
+            id.to_string(),
+            args.into_iter().map(Box::new).collect::<Vec<_>>(),
+        )),
     ))
 }
 
