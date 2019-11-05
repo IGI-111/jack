@@ -1,6 +1,6 @@
 use super::sp;
-use crate::ast::*;
-use crate::types::Type;
+use crate::ir::raw::*;
+use crate::ir::*;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while1};
 use nom::combinator::opt;

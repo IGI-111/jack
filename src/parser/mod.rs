@@ -1,4 +1,4 @@
-use crate::ast::RawFunction;
+use crate::ir::raw::RawFunction;
 use nom::bytes::complete::{take_while, take_while1};
 use nom::multi::separated_list;
 use nom::sequence::tuple;

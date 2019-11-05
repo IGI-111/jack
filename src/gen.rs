@@ -1,5 +1,5 @@
-use crate::ast::*;
-use crate::types::*;
+use crate::ir::typed::*;
+use crate::ir::*;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;

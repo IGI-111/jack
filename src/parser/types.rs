@@ -1,5 +1,5 @@
 use super::sp;
-use crate::types::Type;
+use crate::ir::Type;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while1};
 use nom::sequence::tuple;

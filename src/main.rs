@@ -1,7 +1,6 @@
-mod ast;
 mod gen;
+mod ir;
 mod parser;
-mod types;
 
 use gen::gen;
 use inkwell::OptimizationLevel;
@@ -40,11 +39,10 @@ fn main() {
 
     let typed_functions = functions
         .iter()
-        .map(|func| types::TypedFunction::infer_types(func, &functions))
+        .map(|func| ir::typed::TypedFunction::infer_types(func, &functions))
         .collect::<Vec<_>>();
 
     let module = gen(&typed_functions);
-    module.print_to_stderr();
     let ee = module
         .create_jit_execution_engine(OptimizationLevel::Default)
         .unwrap();

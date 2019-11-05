@@ -1,8 +1,8 @@
 use super::expression::expression;
 use super::types::type_literal;
 use super::{identifier, sp};
-use crate::ast::RawFunction;
-use crate::types::Type;
+use crate::ir::raw::RawFunction;
+use crate::ir::Type;
 use nom::bytes::complete::tag;
 use nom::multi::separated_list;
 use nom::sequence::tuple;

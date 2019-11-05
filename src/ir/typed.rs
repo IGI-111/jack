@@ -1,31 +1,5 @@
-use crate::ast::*;
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Type {
-    Int,
-    Bool,
-    Array(u64, Box<Type>),
-    Function(Box<Type>, Vec<Box<Type>>),
-}
-
-impl Type {
-    pub fn as_function(&self) -> (&Box<Type>, &Vec<Box<Type>>) {
-        match self {
-            Type::Function(ret, args) => (&ret, &args),
-            _ => panic!("Not a Function type"),
-        }
-    }
-}
-
-// impl PartialEq for Type {
-//     fn eq(&self, other: &Self) -> bool {
-//         match (self, other) {
-//             (Type::Int, Type::Int) | (Type::Bool, Type::Bool) => true,
-//             (Type::Array(a), Type::Array(b)) => **a == **b,
-//             _ => false,
-//         }
-//     }
-// }
+use super::raw::*;
+use super::*;
 
 #[derive(Debug, PartialEq)]
 pub enum TypedExpression {

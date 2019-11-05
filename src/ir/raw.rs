@@ -1,4 +1,4 @@
-use crate::types::Type;
+use super::*;
 
 pub struct RawFunction {
     pub name: String,
@@ -18,29 +18,6 @@ pub enum RawExpression {
     UnaryOp(UnaryOp, Box<RawNode>),
     Conditional(Box<RawNode>, Box<RawNode>, Box<RawNode>),
 }
-#[derive(Debug, PartialEq, Clone)]
-pub enum UnaryOp {
-    Minus,
-    Not,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum BinaryOp {
-    Multiply,
-    Divide,
-    Add,
-    Sub,
-    LessThan,
-    LessThanOrEqual,
-    GreaterThan,
-    GreaterThanOrEqual,
-    Equal,
-    NotEqual,
-    And,
-    Or,
-    ArrayDeref,
-}
-
 pub trait Node: PartialEq + Sized {
     fn expr(&self) -> &RawExpression;
     fn into_expr(self) -> RawExpression;
