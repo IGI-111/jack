@@ -62,13 +62,13 @@ fn fun_call(i: &str) -> IResult<&str, RawNode> {
     ))
 }
 
-// fn identifier(i: &str) -> IResult<&str, RawNode> {
-//     let (i, id) = super::identifier(i)?;
-//     Ok((i, RawNode::new(RawExpression::Id(id.to_string()))))
-// }
+fn identifier(i: &str) -> IResult<&str, RawNode> {
+    let (i, id) = super::identifier(i)?;
+    Ok((i, RawNode::new(RawExpression::Id(id.to_string()))))
+}
 
 fn terminal(i: &str) -> IResult<&str, RawNode> {
-    alt((parens, literal, fun_call))(i) //identifier))(i)
+    alt((parens, literal, fun_call, identifier))(i)
 }
 
 fn deref_expr(i: &str) -> IResult<&str, RawNode> {

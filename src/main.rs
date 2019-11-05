@@ -39,7 +39,8 @@ fn main() {
 
     let typed_functions = functions
         .iter()
-        .map(|func| ir::typed::TypedFunction::infer_types(func, &functions))
+        .cloned()
+        .map(|func| ir::sem::SemFunction::analyze(func, &functions))
         .collect::<Vec<_>>();
 
     let module = gen(&typed_functions);

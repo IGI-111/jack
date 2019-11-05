@@ -2,31 +2,39 @@ use super::raw::*;
 use super::*;
 
 #[derive(Debug, PartialEq)]
-pub enum TypedExpression {
+pub enum SemExpression {
     Int(u64),
     Bool(bool),
-    Array(Vec<Box<TypedNode>>),
-    FunCall(String, Vec<Box<TypedNode>>),
-    BinaryOp(BinaryOp, Box<TypedNode>, Box<TypedNode>),
-    UnaryOp(UnaryOp, Box<TypedNode>),
-    Conditional(Box<TypedNode>, Box<TypedNode>, Box<TypedNode>),
+    Array(Vec<Box<SemNode>>),
+    Id(String), // TODO: semantic checking step
+    FunCall(String, Vec<Box<SemNode>>),
+    BinaryOp(BinaryOp, Box<SemNode>, Box<SemNode>),
+    UnaryOp(UnaryOp, Box<SemNode>),
+    Conditional(Box<SemNode>, Box<SemNode>, Box<SemNode>),
 }
 
 #[derive(PartialEq, Debug)]
-pub struct TypedFunction {
+pub struct SemFunction {
     name: String,
-    root: TypedNode,
+    root: SemNode,
+    args: Vec<(String, Type)>,
     ty: Type,
 }
 
-impl TypedFunction {
-    pub fn infer_types(fun: &RawFunction, funcs: &[RawFunction]) -> Self {
+impl SemFunction {
+    pub fn analyze(fun: RawFunction, funcs: &[RawFunction]) -> Self {
         let name = fun.name.to_string();
-        let root = TypedNode::infer_types(&fun.root, funcs);
-        let (ret, args) = fun.ty.as_function();
-        assert_eq!(root.ty(), &**ret);
-        let ty = Type::Function(ret.clone(), args.clone());
-        Self { root, name, ty }
+        let root = SemNode::analyze(fun.root, funcs);
+        let (ret, args) = fun.ty.into_function();
+        assert_eq!(*root.ty(), *ret);
+        let ty = Type::Function(ret, args);
+        let args = fun.args;
+        Self {
+            root,
+            name,
+            ty,
+            args,
+        }
     }
     pub fn ty(&self) -> &Type {
         &self.ty
@@ -34,52 +42,60 @@ impl TypedFunction {
     pub fn name(&self) -> &str {
         &self.name
     }
-    pub fn root(&self) -> &TypedNode {
+    pub fn root(&self) -> &SemNode {
         &self.root
+    }
+    pub fn args(&self) -> &Vec<(String, Type)> {
+        &self.args
     }
 }
 
 #[derive(PartialEq, Debug)]
-pub struct TypedNode {
+pub struct SemNode {
     ty: Type,
-    expr: TypedExpression,
+    expr: SemExpression,
 }
 
-impl TypedNode {
-    pub fn infer_types(node: &RawNode, funcs: &[RawFunction]) -> Self {
-        let expr = match node.expr() {
-            RawExpression::Int(val) => TypedExpression::Int(*val),
-            RawExpression::Bool(val) => TypedExpression::Bool(*val),
-            RawExpression::Array(val) => TypedExpression::Array(
+impl SemNode {
+    pub fn analyze(node: RawNode, funcs: &[RawFunction]) -> Self {
+        let expr = match node.into_expr() {
+            RawExpression::Int(val) => SemExpression::Int(val),
+            RawExpression::Bool(val) => SemExpression::Bool(val),
+            RawExpression::Id(val) => SemExpression::Id(val),
+            RawExpression::Array(val) => SemExpression::Array(
                 val.into_iter()
-                    .map(|n| Box::new(Self::infer_types(&*n, funcs)))
+                    .map(|n| Box::new(Self::analyze(*n, funcs)))
                     .collect(),
             ),
-            RawExpression::BinaryOp(op, a, b) => TypedExpression::BinaryOp(
+            RawExpression::BinaryOp(op, a, b) => SemExpression::BinaryOp(
                 op.clone(),
-                Box::new(Self::infer_types(&*a, funcs)),
-                Box::new(Self::infer_types(&*b, funcs)),
+                Box::new(Self::analyze(*a, funcs)),
+                Box::new(Self::analyze(*b, funcs)),
             ),
             RawExpression::UnaryOp(op, a) => {
-                TypedExpression::UnaryOp(op.clone(), Box::new(Self::infer_types(&*a, funcs)))
+                SemExpression::UnaryOp(op.clone(), Box::new(Self::analyze(*a, funcs)))
             }
-            RawExpression::Conditional(cond, then, alt) => TypedExpression::Conditional(
-                Box::new(Self::infer_types(&*cond, funcs)),
-                Box::new(Self::infer_types(&*then, funcs)),
-                Box::new(Self::infer_types(&*alt, funcs)),
+            RawExpression::Conditional(cond, then, alt) => SemExpression::Conditional(
+                Box::new(Self::analyze(*cond, funcs)),
+                Box::new(Self::analyze(*then, funcs)),
+                Box::new(Self::analyze(*alt, funcs)),
             ),
-            RawExpression::FunCall(id, args) => TypedExpression::FunCall(
+            RawExpression::FunCall(id, args) => SemExpression::FunCall(
                 id.to_string(),
                 args.into_iter()
-                    .map(|a| Box::new(Self::infer_types(&*a, funcs)))
+                    .map(|a| Box::new(Self::analyze(*a, funcs)))
                     .collect::<Vec<_>>(),
             ),
         };
 
         let ty = match &expr {
-            TypedExpression::Int(_) => Type::Int,
-            TypedExpression::Bool(_) => Type::Bool,
-            TypedExpression::FunCall(id, args) => {
+            SemExpression::Int(_) => Type::Int,
+            SemExpression::Bool(_) => Type::Bool,
+            SemExpression::Id(name) => {
+                // FIXME: proper semantic analysis
+                Type::Bool
+            }
+            SemExpression::FunCall(id, args) => {
                 let fun_def = funcs
                     .iter()
                     .find(|f| &f.name == id)
@@ -93,7 +109,7 @@ impl TypedNode {
                 }
                 (**ret).clone()
             }
-            TypedExpression::Array(vals) => {
+            SemExpression::Array(vals) => {
                 let inner_type = if vals.len() > 0 {
                     vals[0].ty().clone()
                 } else {
@@ -104,7 +120,7 @@ impl TypedNode {
                 }
                 Type::Array(vals.len() as u64, Box::new(inner_type))
             }
-            TypedExpression::UnaryOp(op, a) => match op {
+            SemExpression::UnaryOp(op, a) => match op {
                 UnaryOp::Minus => {
                     assert_eq!(a.ty(), &Type::Int);
                     Type::Int
@@ -114,7 +130,7 @@ impl TypedNode {
                     Type::Bool
                 }
             },
-            TypedExpression::BinaryOp(op, a, b) => match op {
+            SemExpression::BinaryOp(op, a, b) => match op {
                 BinaryOp::Multiply | BinaryOp::Divide | BinaryOp::Add | BinaryOp::Sub => {
                     assert_eq!(a.ty(), &Type::Int);
                     assert_eq!(b.ty(), &Type::Int);
@@ -139,7 +155,7 @@ impl TypedNode {
                 }
                 BinaryOp::ArrayDeref => {
                     if let Type::Array(_, elem_type) = a.ty() {
-                        if let TypedExpression::Int(_) = b.expr() {
+                        if let SemExpression::Int(_) = b.expr() {
                             (**elem_type).clone()
                         } else {
                             panic!("Cannot index by anything else than a literal integer");
@@ -149,7 +165,7 @@ impl TypedNode {
                     }
                 }
             },
-            TypedExpression::Conditional(cond, then, alt) => {
+            SemExpression::Conditional(cond, then, alt) => {
                 assert_eq!(cond.ty(), &Type::Bool);
                 assert_eq!(then.ty(), alt.ty());
                 then.ty().clone()
@@ -161,7 +177,7 @@ impl TypedNode {
     pub fn ty(&self) -> &Type {
         &self.ty
     }
-    pub fn expr(&self) -> &TypedExpression {
+    pub fn expr(&self) -> &SemExpression {
         &self.expr
     }
 }

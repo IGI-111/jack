@@ -1,5 +1,5 @@
 pub mod raw;
-pub mod typed;
+pub mod sem;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum UnaryOp {
@@ -36,6 +36,12 @@ impl Type {
     pub fn as_function(&self) -> (&Box<Type>, &Vec<Box<Type>>) {
         match self {
             Type::Function(ret, args) => (&ret, &args),
+            _ => panic!("Not a Function type"),
+        }
+    }
+    pub fn into_function(self) -> (Box<Type>, Vec<Box<Type>>) {
+        match self {
+            Type::Function(ret, args) => (ret, args),
             _ => panic!("Not a Function type"),
         }
     }

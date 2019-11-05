@@ -1,12 +1,12 @@
 use super::super::{GenerationContext, Realizable};
 use super::gen_expr;
-use crate::ir::typed::*;
+use crate::ir::sem::*;
 use crate::ir::*;
 use inkwell::types::BasicTypeEnum;
 use inkwell::values::{ArrayValue, BasicValueEnum, IntValue};
 
 pub(super) fn gen_array(
-    vals: &Vec<Box<TypedNode>>,
+    vals: &Vec<Box<SemNode>>,
     ty: &Type,
     ctx: &GenerationContext,
 ) -> BasicValueEnum {
@@ -43,15 +43,15 @@ pub(super) fn gen_array(
 }
 
 pub(super) fn gen_array_deref(
-    array: &TypedNode,
-    index: &TypedNode,
+    array: &SemNode,
+    index: &SemNode,
     ctx: &GenerationContext,
 ) -> BasicValueEnum {
     ctx.builder
         .build_extract_value(
             gen_expr(array, ctx).into_array_value(),
             match index.expr() {
-                TypedExpression::Int(val) => *val as u32,
+                SemExpression::Int(val) => *val as u32,
                 _ => unreachable!(),
             },
             "",

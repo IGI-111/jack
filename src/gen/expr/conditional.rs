@@ -1,12 +1,12 @@
 use super::super::GenerationContext;
 use super::gen_expr;
-use crate::ir::typed::*;
+use crate::ir::sem::*;
 use inkwell::values::{BasicValue, BasicValueEnum};
 
 pub(super) fn gen_conditional(
-    cond: &TypedNode,
-    then: &TypedNode,
-    alt: &TypedNode,
+    cond: &SemNode,
+    then: &SemNode,
+    alt: &SemNode,
     ctx: &GenerationContext,
 ) -> BasicValueEnum {
     let cond_block = ctx

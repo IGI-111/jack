@@ -1,5 +1,6 @@
 use super::*;
 
+#[derive(Debug, Clone)]
 pub struct RawFunction {
     pub name: String,
     pub root: RawNode,
@@ -7,13 +8,13 @@ pub struct RawFunction {
     pub ty: Type,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum RawExpression {
     Int(u64),
     Bool(bool),
     Array(Vec<Box<RawNode>>),
     FunCall(String, Vec<Box<RawNode>>),
-    // Id(String),
+    Id(String), // TODO: semantic checking step
     BinaryOp(BinaryOp, Box<RawNode>, Box<RawNode>),
     UnaryOp(UnaryOp, Box<RawNode>),
     Conditional(Box<RawNode>, Box<RawNode>, Box<RawNode>),
@@ -23,7 +24,7 @@ pub trait Node: PartialEq + Sized {
     fn into_expr(self) -> RawExpression;
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct RawNode {
     expr: RawExpression,
 }

@@ -1,4 +1,4 @@
-use crate::ir::typed::*;
+use crate::ir::sem::*;
 use crate::ir::*;
 use expr::gen_expr;
 use inkwell::builder::Builder;
@@ -14,8 +14,9 @@ mod expr;
 struct GenerationContext<'a> {
     pub builder: &'a Builder,
     pub context: &'a Context,
+    pub value_store: &'a HashMap<String, BasicValueEnum>,
     pub current_function: &'a FunctionValue,
-    pub functions: &'a HashMap<String, (FunctionValue, &'a TypedFunction)>,
+    pub functions: &'a HashMap<String, (FunctionValue, &'a SemFunction)>,
 }
 
 trait Realizable {
@@ -40,7 +41,7 @@ impl Realizable for Type {
     }
 }
 
-pub fn gen(funcs: &[TypedFunction]) -> Module {
+pub fn gen(funcs: &[SemFunction]) -> Module {
     let context = Context::create();
     let module = context.create_module("main");
     let builder = context.create_builder();
@@ -75,7 +76,16 @@ pub fn gen(funcs: &[TypedFunction]) -> Module {
         .collect::<HashMap<_, _>>();
 
     for (function, fun) in functions.values() {
+        let mut value_store = HashMap::new();
+        for (param_val, param_name) in function
+            .get_param_iter()
+            .zip(fun.args().iter().map(|(name, _)| name))
+        {
+            value_store.insert(param_name.to_string(), param_val);
+        }
+
         let ctx = GenerationContext {
+            value_store: &value_store,
             context: &context,
             builder: &builder,
             current_function: &function,
