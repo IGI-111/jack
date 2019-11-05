@@ -4,6 +4,7 @@ mod parser;
 
 use gen::gen;
 use inkwell::OptimizationLevel;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
 use std::fs::File;
@@ -37,10 +38,14 @@ fn main() {
         panic!("Duplicate function name");
     }
 
-    let typed_functions = functions
+    let function_types = functions
         .iter()
-        .cloned()
-        .map(|func| ir::sem::SemFunction::analyze(func, &functions))
+        .map(|f| (f.name.clone(), f.ty.clone()))
+        .collect::<HashMap<String, ir::Type>>();
+    let ctx = ir::sem::SemContext::new(function_types, HashMap::new());
+    let typed_functions = functions
+        .into_iter()
+        .map(|func| ir::sem::SemFunction::analyze(func, &ctx))
         .collect::<Vec<_>>();
 
     let module = gen(&typed_functions);

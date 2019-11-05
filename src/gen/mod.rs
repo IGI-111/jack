@@ -55,11 +55,15 @@ pub fn gen(funcs: &[SemFunction]) -> Module {
                     Type::Bool | Type::Int => ty.real_type(&context).into_int_type().fn_type(
                         &args
                             .into_iter()
-                            .map(|arg| match **arg {
-                                Type::Bool | Type::Int => {
-                                    arg.real_type(&context).into_int_type().as_basic_type_enum()
+                            .map(|arg| {
+                                let (_arg_name, arg_type) = arg.as_ref();
+                                match arg_type {
+                                    Type::Bool | Type::Int => arg_type
+                                        .real_type(&context)
+                                        .into_int_type()
+                                        .as_basic_type_enum(),
+                                    _ => panic!("Argument of function is not integer type"),
                                 }
-                                _ => panic!("Argument of function is not integer type"),
                             })
                             .collect::<Vec<_>>(),
                         false,

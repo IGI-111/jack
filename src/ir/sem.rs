@@ -1,5 +1,6 @@
 use super::raw::*;
 use super::*;
+use std::collections::HashMap;
 
 #[derive(Debug, PartialEq)]
 pub enum SemExpression {
@@ -22,13 +23,21 @@ pub struct SemFunction {
 }
 
 impl SemFunction {
-    pub fn analyze(fun: RawFunction, funcs: &[RawFunction]) -> Self {
+    pub fn analyze(fun: RawFunction, ctx: &SemContext) -> Self {
         let name = fun.name.to_string();
-        let root = SemNode::analyze(fun.root, funcs);
-        let (ret, args) = fun.ty.into_function();
-        assert_eq!(*root.ty(), *ret);
-        let ty = Type::Function(ret, args);
+        let (ret, arg_types) = fun.ty.into_function();
         let args = fun.args;
+
+        let available_funs = ctx.funs().clone();
+        let mut available_vars = ctx.vars().clone();
+        for (arg_name, arg_type) in args.iter() {
+            available_vars.insert(arg_name.clone(), arg_type.clone());
+        }
+        let ctx = SemContext::new(available_funs, available_vars);
+        let root = SemNode::analyze(fun.root, &ctx);
+        assert_eq!(*root.ty(), *ret);
+        let ty = Type::Function(ret, arg_types);
+
         Self {
             root,
             name,
@@ -50,6 +59,24 @@ impl SemFunction {
     }
 }
 
+#[derive(Debug)]
+pub struct SemContext {
+    funs: HashMap<String, Type>,
+    vars: HashMap<String, Type>,
+}
+
+impl SemContext {
+    pub fn new(funs: HashMap<String, Type>, vars: HashMap<String, Type>) -> Self {
+        Self { funs, vars }
+    }
+    pub fn funs(&self) -> &HashMap<String, Type> {
+        &self.funs
+    }
+    pub fn vars(&self) -> &HashMap<String, Type> {
+        &self.vars
+    }
+}
+
 #[derive(PartialEq, Debug)]
 pub struct SemNode {
     ty: Type,
@@ -57,33 +84,33 @@ pub struct SemNode {
 }
 
 impl SemNode {
-    pub fn analyze(node: RawNode, funcs: &[RawFunction]) -> Self {
+    pub fn analyze(node: RawNode, ctx: &SemContext) -> Self {
         let expr = match node.into_expr() {
             RawExpression::Int(val) => SemExpression::Int(val),
             RawExpression::Bool(val) => SemExpression::Bool(val),
             RawExpression::Id(val) => SemExpression::Id(val),
             RawExpression::Array(val) => SemExpression::Array(
                 val.into_iter()
-                    .map(|n| Box::new(Self::analyze(*n, funcs)))
+                    .map(|n| Box::new(Self::analyze(*n, ctx)))
                     .collect(),
             ),
             RawExpression::BinaryOp(op, a, b) => SemExpression::BinaryOp(
                 op.clone(),
-                Box::new(Self::analyze(*a, funcs)),
-                Box::new(Self::analyze(*b, funcs)),
+                Box::new(Self::analyze(*a, ctx)),
+                Box::new(Self::analyze(*b, ctx)),
             ),
             RawExpression::UnaryOp(op, a) => {
-                SemExpression::UnaryOp(op.clone(), Box::new(Self::analyze(*a, funcs)))
+                SemExpression::UnaryOp(op.clone(), Box::new(Self::analyze(*a, ctx)))
             }
             RawExpression::Conditional(cond, then, alt) => SemExpression::Conditional(
-                Box::new(Self::analyze(*cond, funcs)),
-                Box::new(Self::analyze(*then, funcs)),
-                Box::new(Self::analyze(*alt, funcs)),
+                Box::new(Self::analyze(*cond, ctx)),
+                Box::new(Self::analyze(*then, ctx)),
+                Box::new(Self::analyze(*alt, ctx)),
             ),
             RawExpression::FunCall(id, args) => SemExpression::FunCall(
                 id.to_string(),
                 args.into_iter()
-                    .map(|a| Box::new(Self::analyze(*a, funcs)))
+                    .map(|a| Box::new(Self::analyze(*a, ctx)))
                     .collect::<Vec<_>>(),
             ),
         };
@@ -91,21 +118,21 @@ impl SemNode {
         let ty = match &expr {
             SemExpression::Int(_) => Type::Int,
             SemExpression::Bool(_) => Type::Bool,
-            SemExpression::Id(name) => {
-                // FIXME: proper semantic analysis
-                Type::Bool
-            }
+            SemExpression::Id(name) => ctx
+                .vars()
+                .get(name)
+                .expect(&format!("Unknown variable {}", name))
+                .clone(),
             SemExpression::FunCall(id, args) => {
-                let fun_def = funcs
-                    .iter()
-                    .find(|f| &f.name == id)
-                    .expect("Unknown function");
+                let ftype = ctx.funs().get(id).expect("Unknown function");
 
-                let (ret, argdefs) = fun_def.ty.as_function();
+                let (ret, argdefs) = ftype.as_function();
                 assert_eq!(args.len(), argdefs.len());
 
-                for (arg_type, arg_node) in argdefs.iter().zip(args.iter()) {
-                    assert_eq!(&**arg_type, arg_node.ty());
+                for ((_arg_name, arg_type), arg_node) in
+                    argdefs.iter().map(|a| a.as_ref()).zip(args.iter())
+                {
+                    assert_eq!(arg_type, arg_node.ty());
                 }
                 (**ret).clone()
             }

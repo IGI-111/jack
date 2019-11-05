@@ -31,10 +31,7 @@ pub fn function(i: &str) -> IResult<&str, RawFunction> {
         sp,
         tag("end"),
     ))(i)?;
-    let args_types = args
-        .iter()
-        .map(|(_, t)| Box::new(t.clone()))
-        .collect::<Vec<_>>();
+    let args_types = args.iter().cloned().map(Box::new).collect::<Vec<_>>();
     Ok((
         i,
         RawFunction {

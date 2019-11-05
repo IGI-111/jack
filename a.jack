@@ -1,15 +1,15 @@
-fn not(a: bool): bool
-	!a
+fn fib(n: int): int
+	if n == 0 then
+		0
+	else
+		if n == 1 then
+			1
+		else
+			fib(n-1) + fib(n-2)
+		end
+	end
 end
 
 fn main(): int
-	if true then
-		if not(not(true)) then
-			1
-		else
-			9999
-		end
-	else
-		42
-	end
+	fib(9)
 end

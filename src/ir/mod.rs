@@ -29,17 +29,17 @@ pub enum Type {
     Int,
     Bool,
     Array(u64, Box<Type>),
-    Function(Box<Type>, Vec<Box<Type>>),
+    Function(Box<Type>, Vec<Box<(String, Type)>>),
 }
 
 impl Type {
-    pub fn as_function(&self) -> (&Box<Type>, &Vec<Box<Type>>) {
+    pub fn as_function(&self) -> (&Box<Type>, &Vec<Box<(String, Type)>>) {
         match self {
             Type::Function(ret, args) => (&ret, &args),
             _ => panic!("Not a Function type"),
         }
     }
-    pub fn into_function(self) -> (Box<Type>, Vec<Box<Type>>) {
+    pub fn into_function(self) -> (Box<Type>, Vec<Box<(String, Type)>>) {
         match self {
             Type::Function(ret, args) => (ret, args),
             _ => panic!("Not a Function type"),
