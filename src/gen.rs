@@ -12,7 +12,7 @@ use std::collections::HashMap;
 struct GenerationContext<'a> {
     pub builder: &'a Builder,
     pub context: &'a Context,
-    pub function: &'a FunctionValue,
+    pub current_function: &'a FunctionValue,
     pub functions: &'a HashMap<String, (FunctionValue, &'a TypedFunction)>,
 }
 
@@ -84,7 +84,7 @@ pub fn gen(funcs: &[TypedFunction]) -> Module {
         let ctx = GenerationContext {
             context: &context,
             builder: &builder,
-            function: &function,
+            current_function: &function,
             functions: &functions,
         };
 
@@ -103,9 +103,13 @@ pub fn gen(funcs: &[TypedFunction]) -> Module {
 
 fn gen_expr(root: &TypedNode, ctx: &GenerationContext) -> BasicValueEnum {
     match root.expr() {
-        TypedExpression::FunCall(name, _args) => ctx
+        TypedExpression::FunCall(name, args) => ctx
             .builder
-            .build_call(ctx.functions.get(name).unwrap().0, &[], "")
+            .build_call(
+                ctx.functions.get(name).unwrap().0,
+                &args.iter().map(|a| gen_expr(a, ctx)).collect::<Vec<_>>(),
+                "",
+            )
             .try_as_basic_value()
             .left()
             .expect("Callsite is not convertible to a BasicValue"),
@@ -215,7 +219,7 @@ fn gen_conditional(
     let cond_block = ctx
         .builder
         .get_insert_block()
-        .unwrap_or_else(|| ctx.context.append_basic_block(&ctx.function, "if"));
+        .unwrap_or_else(|| ctx.context.append_basic_block(&ctx.current_function, "if"));
     let then_block = ctx.context.insert_basic_block_after(&cond_block, "then");
     let else_block = ctx.context.insert_basic_block_after(&then_block, "else");
     let cont_block = ctx.context.insert_basic_block_after(&else_block, "fi");
