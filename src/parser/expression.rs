@@ -262,7 +262,7 @@ fn logical_or_expr(i: &str) -> IResult<&str, RawNode> {
 }
 
 fn conditional_expr(i: &str) -> IResult<&str, RawNode> {
-    let (i, (_, _, top_cond, _, _, _, top_exp, _, elifs, _, _, top_alt, _, _)) = tuple((
+    let (i, (_, _, top_cond, _, _, _, top_exp, _, elifs, _, _, top_alt)) = tuple((
         tag("if"),
         sp,
         expression,
@@ -272,7 +272,9 @@ fn conditional_expr(i: &str) -> IResult<&str, RawNode> {
         expression,
         sp,
         many0(tuple((
-            tag("elif"),
+            tag("else"),
+            sp,
+            tag("if"),
             sp,
             expression,
             sp,
@@ -284,12 +286,10 @@ fn conditional_expr(i: &str) -> IResult<&str, RawNode> {
         tag("else"),
         sp,
         expression,
-        sp,
-        tag("end"),
     ))(i)?;
 
     let mut node = top_alt;
-    for (_, _, cond, _, _, _, expr, _) in elifs.into_iter().rev() {
+    for (_, _, _, _, cond, _, _, _, expr, _) in elifs.into_iter().rev() {
         node = RawNode::new(RawExpression::Conditional(
             Box::new(cond),
             Box::new(expr),

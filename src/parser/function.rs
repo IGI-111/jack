@@ -14,8 +14,8 @@ fn argument(i: &str) -> IResult<&str, (String, Type)> {
 }
 
 pub fn function(i: &str) -> IResult<&str, RawFunction> {
-    let (i, (_, _, name, _, _, args, _, _, _, _, return_type, _, root, _, _)) = tuple((
-        tag("fn"),
+    let (i, (_, _, name, _, _, args, _, _, _, _, return_type, _, _, _, root)) = tuple((
+        tag("fun"),
         sp,
         identifier,
         sp,
@@ -27,9 +27,9 @@ pub fn function(i: &str) -> IResult<&str, RawFunction> {
         sp,
         type_literal,
         sp,
-        expression,
+        tag("="),
         sp,
-        tag("end"),
+        expression,
     ))(i)?;
     let args_types = args.iter().cloned().map(Box::new).collect::<Vec<_>>();
     Ok((
