@@ -1,4 +1,4 @@
-use super::sp;
+use super::{identifier, sp};
 use crate::ir::raw::*;
 use crate::ir::*;
 use nom::branch::alt;
@@ -45,7 +45,7 @@ fn parens(i: &str) -> IResult<&str, RawNode> {
 
 fn fun_call(i: &str) -> IResult<&str, RawNode> {
     let (i, (id, _, _, _, args, _, _)) = tuple((
-        super::identifier,
+        identifier,
         sp,
         tag("("),
         sp,
@@ -62,13 +62,13 @@ fn fun_call(i: &str) -> IResult<&str, RawNode> {
     ))
 }
 
-fn identifier(i: &str) -> IResult<&str, RawNode> {
-    let (i, id) = super::identifier(i)?;
+fn identifier_expr(i: &str) -> IResult<&str, RawNode> {
+    let (i, id) = identifier(i)?;
     Ok((i, RawNode::new(RawExpression::Id(id.to_string()))))
 }
 
 fn terminal(i: &str) -> IResult<&str, RawNode> {
-    alt((parens, literal, fun_call, identifier))(i)
+    alt((parens, literal, fun_call, identifier_expr))(i)
 }
 
 fn deref_expr(i: &str) -> IResult<&str, RawNode> {
@@ -305,8 +305,32 @@ fn conditional_expr(i: &str) -> IResult<&str, RawNode> {
     Ok((i, node))
 }
 
+fn let_expr(i: &str) -> IResult<&str, RawNode> {
+    let (i, (_, _, id, _, _, _, val, _, _, _, expr)) = tuple((
+        tag("let"),
+        sp,
+        identifier,
+        sp,
+        tag("="),
+        sp,
+        expression,
+        sp,
+        tag("in"),
+        sp,
+        expression,
+    ))(i)?;
+    Ok((
+        i,
+        RawNode::new(RawExpression::Let(
+            id.to_string(),
+            Box::new(val),
+            Box::new(expr),
+        )),
+    ))
+}
+
 pub fn expression(i: &str) -> IResult<&str, RawNode> {
-    alt((conditional_expr, logical_or_expr))(i)
+    alt((let_expr, conditional_expr, logical_or_expr))(i)
 }
 
 #[test]

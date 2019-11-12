@@ -16,6 +16,19 @@ pub(super) fn gen_expr(root: &SemNode, ctx: &GenerationContext) -> BasicValueEnu
             .get(name)
             .expect(&format!("Unknown identifier {}", name))
             .as_basic_value_enum(),
+        SemExpression::Let(id, val, expr) => {
+            let val = gen_expr(val, ctx);
+            let mut value_store = ctx.value_store.clone();
+            value_store.insert(id.clone(), val);
+            let ctx = GenerationContext {
+                builder: ctx.builder,
+                context: ctx.context,
+                value_store: &value_store,
+                current_function: ctx.current_function,
+                functions: ctx.functions,
+            };
+            gen_expr(expr, &ctx)
+        }
         SemExpression::FunCall(name, args) => ctx
             .builder
             .build_call(

@@ -12,6 +12,7 @@ pub enum SemExpression {
     BinaryOp(BinaryOp, Box<SemNode>, Box<SemNode>),
     UnaryOp(UnaryOp, Box<SemNode>),
     Conditional(Box<SemNode>, Box<SemNode>, Box<SemNode>),
+    Let(String, Box<SemNode>, Box<SemNode>),
 }
 
 #[derive(PartialEq, Debug)]
@@ -89,6 +90,17 @@ impl SemNode {
             RawExpression::Int(val) => SemExpression::Int(val),
             RawExpression::Bool(val) => SemExpression::Bool(val),
             RawExpression::Id(val) => SemExpression::Id(val),
+            RawExpression::Let(id, val, expr) => {
+                let val = Box::new(Self::analyze(*val, ctx));
+
+                let available_funs = ctx.funs().clone();
+                let mut available_vars = ctx.vars().clone();
+                available_vars.insert(id.clone(), val.ty().clone());
+                let ctx = SemContext::new(available_funs, available_vars);
+
+                let expr = Box::new(Self::analyze(*expr, &ctx));
+                SemExpression::Let(id, val, expr)
+            }
             RawExpression::Array(val) => SemExpression::Array(
                 val.into_iter()
                     .map(|n| Box::new(Self::analyze(*n, ctx)))
@@ -123,6 +135,7 @@ impl SemNode {
                 .get(name)
                 .expect(&format!("Unknown variable {}", name))
                 .clone(),
+            SemExpression::Let(_id, _val, expr) => expr.ty().clone(),
             SemExpression::FunCall(id, args) => {
                 let ftype = ctx.funs().get(id).expect("Unknown function");
 

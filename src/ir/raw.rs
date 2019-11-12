@@ -18,6 +18,7 @@ pub enum RawExpression {
     BinaryOp(BinaryOp, Box<RawNode>, Box<RawNode>),
     UnaryOp(UnaryOp, Box<RawNode>),
     Conditional(Box<RawNode>, Box<RawNode>, Box<RawNode>),
+    Let(String, Box<RawNode>, Box<RawNode>),
 }
 pub trait Node: PartialEq + Sized {
     fn expr(&self) -> &RawExpression;
