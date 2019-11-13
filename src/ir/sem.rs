@@ -29,12 +29,7 @@ impl SemFunction {
         let (ret, arg_types) = fun.ty.into_function();
         let args = fun.args;
 
-        let available_funs = ctx.funs().clone();
-        let mut available_vars = ctx.vars().clone();
-        for (arg_name, arg_type) in args.iter() {
-            available_vars.insert(arg_name.clone(), arg_type.clone());
-        }
-        let ctx = SemContext::new(available_funs, available_vars);
+        let ctx = ctx.extend_vars(args.iter().cloned());
         let root = SemNode::analyze(fun.root, &ctx);
         assert_eq!(*root.ty(), *ret);
         let ty = Type::Function(ret, arg_types);
@@ -67,7 +62,9 @@ pub struct SemContext {
 }
 
 impl SemContext {
-    pub fn new(funs: HashMap<String, Type>, vars: HashMap<String, Type>) -> Self {
+    pub fn from_funs(funs: impl IntoIterator<Item = (String, Type)>) -> Self {
+        let funs = funs.into_iter().collect::<HashMap<_, _>>();
+        let vars = HashMap::new();
         Self { funs, vars }
     }
     pub fn funs(&self) -> &HashMap<String, Type> {
@@ -75,6 +72,20 @@ impl SemContext {
     }
     pub fn vars(&self) -> &HashMap<String, Type> {
         &self.vars
+    }
+    pub fn extend_var(&self, id: String, ty: Type) -> Self {
+        let funs = self.funs.clone();
+        let mut vars = self.vars.clone();
+        vars.insert(id, ty);
+        Self { funs, vars }
+    }
+    pub fn extend_vars(&self, it: impl IntoIterator<Item = (String, Type)>) -> Self {
+        let funs = self.funs.clone();
+        let mut vars = self.vars.clone();
+        for (id, ty) in it {
+            vars.insert(id, ty);
+        }
+        Self { funs, vars }
     }
 }
 
@@ -92,12 +103,7 @@ impl SemNode {
             RawExpression::Id(val) => SemExpression::Id(val),
             RawExpression::Let(id, val, expr) => {
                 let val = Box::new(Self::analyze(*val, ctx));
-
-                let available_funs = ctx.funs().clone();
-                let mut available_vars = ctx.vars().clone();
-                available_vars.insert(id.clone(), val.ty().clone());
-                let ctx = SemContext::new(available_funs, available_vars);
-
+                let ctx = ctx.extend_var(id.clone(), val.ty().clone());
                 let expr = Box::new(Self::analyze(*expr, &ctx));
                 SemExpression::Let(id, val, expr)
             }

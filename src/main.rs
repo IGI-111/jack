@@ -38,11 +38,8 @@ fn main() {
         panic!("Duplicate function name");
     }
 
-    let function_types = functions
-        .iter()
-        .map(|f| (f.name.clone(), f.ty.clone()))
-        .collect::<HashMap<String, ir::Type>>();
-    let ctx = ir::sem::SemContext::new(function_types, HashMap::new());
+    let ctx =
+        ir::sem::SemContext::from_funs(functions.iter().map(|f| (f.name.clone(), f.ty.clone())));
     let typed_functions = functions
         .into_iter()
         .map(|func| ir::sem::SemFunction::analyze(func, &ctx))
