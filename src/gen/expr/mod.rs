@@ -11,22 +11,11 @@ mod conditional;
 
 pub(super) fn gen_expr(root: &SemNode, ctx: &GenerationContext) -> BasicValueEnum {
     match root.expr() {
-        SemExpression::Id(name) => ctx
-            .value_store
-            .get(name)
-            .expect(&format!("Unknown identifier {}", name))
-            .as_basic_value_enum(),
+        SemExpression::Id(name) => ctx.value_store.get(name).as_basic_value_enum(),
         SemExpression::Let(id, val, expr) => {
             let val = gen_expr(val, ctx);
-            let mut value_store = ctx.value_store.clone();
-            value_store.insert(id.clone(), val);
-            let ctx = GenerationContext {
-                builder: ctx.builder,
-                context: ctx.context,
-                value_store: &value_store,
-                current_function: ctx.current_function,
-                functions: ctx.functions,
-            };
+            let value_store = ctx.value_store.extend_with_val(id.to_string(), val);
+            let ctx = ctx.replace_value_store(&value_store);
             gen_expr(expr, &ctx)
         }
         SemExpression::FunCall(name, args) => ctx

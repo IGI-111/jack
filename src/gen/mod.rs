@@ -8,15 +8,29 @@ use inkwell::types::BasicType;
 use inkwell::types::BasicTypeEnum;
 use inkwell::values::{BasicValueEnum, FunctionValue};
 use std::collections::HashMap;
+use value_store::ValueStore;
 
 mod expr;
+mod value_store;
 
 struct GenerationContext<'a> {
     pub builder: &'a Builder,
     pub context: &'a Context,
-    pub value_store: &'a HashMap<String, BasicValueEnum>,
+    pub value_store: &'a ValueStore,
     pub current_function: &'a FunctionValue,
     pub functions: &'a HashMap<String, (FunctionValue, &'a SemFunction)>,
+}
+
+impl<'a> GenerationContext<'a> {
+    pub fn replace_value_store(&self, value_store: &'a ValueStore) -> Self {
+        Self {
+            builder: self.builder,
+            context: self.context,
+            value_store,
+            current_function: self.current_function,
+            functions: self.functions,
+        }
+    }
 }
 
 trait Realizable {
@@ -80,16 +94,13 @@ pub fn gen(funcs: &[SemFunction]) -> Module {
         .collect::<HashMap<_, _>>();
 
     for (function, fun) in functions.values() {
-        let mut value_store = HashMap::new();
-        for (param_val, param_name) in function
-            .get_param_iter()
-            .zip(fun.args().iter().map(|(name, _)| name))
-        {
-            value_store.insert(param_name.to_string(), param_val);
-        }
-
         let ctx = GenerationContext {
-            value_store: &value_store,
+            value_store: &ValueStore::new(
+                function
+                    .get_param_iter()
+                    .zip(fun.args().iter().map(|(name, _)| name))
+                    .map(|(val, id)| (id.to_string(), val)),
+            ),
             context: &context,
             builder: &builder,
             current_function: &function,
