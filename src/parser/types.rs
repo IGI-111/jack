@@ -2,10 +2,11 @@ use super::sp;
 use crate::ir::Type;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while1};
+use nom::error::VerboseError;
 use nom::sequence::tuple;
 use nom::IResult;
 
-fn array_type(i: &str) -> IResult<&str, Type> {
+fn array_type(i: &str) -> IResult<&str, Type, VerboseError<&str>> {
     let (i, (_, _, elem, _, _, _, len, _, _)) = tuple((
         tag("["),
         sp,
@@ -20,16 +21,16 @@ fn array_type(i: &str) -> IResult<&str, Type> {
     Ok((i, Type::Array(len.parse().unwrap(), Box::new(elem))))
 }
 
-fn bool_type(i: &str) -> IResult<&str, Type> {
+fn bool_type(i: &str) -> IResult<&str, Type, VerboseError<&str>> {
     let (i, _) = tag("bool")(i)?;
     Ok((i, Type::Bool))
 }
 
-fn int_type(i: &str) -> IResult<&str, Type> {
+fn int_type(i: &str) -> IResult<&str, Type, VerboseError<&str>> {
     let (i, _) = tag("int")(i)?;
     Ok((i, Type::Int))
 }
 
-pub fn type_literal(i: &str) -> IResult<&str, Type> {
+pub fn type_literal(i: &str) -> IResult<&str, Type, VerboseError<&str>> {
     alt((int_type, bool_type, array_type))(i)
 }

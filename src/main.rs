@@ -1,18 +1,26 @@
+mod error;
 mod gen;
 mod ir;
 mod parser;
 
+use crate::error::{CompilerError, Result};
 use gen::gen;
 use inkwell::OptimizationLevel;
-use std::collections::HashMap;
+use nom::error::convert_error;
 use std::collections::HashSet;
-use std::env;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 
 fn main() {
-    let arg = env::args()
+    if let Err(err) = try_main() {
+        eprintln!("{}", err);
+        std::process::exit(1);
+    }
+}
+
+fn try_main() -> Result<()> {
+    let arg = std::env::args()
         .skip(1)
         .next()
         .expect("You must specify an input file");
@@ -22,16 +30,22 @@ fn main() {
     file.read_to_string(&mut text)
         .expect(&format!("Can't read file: {}", path.display()));
 
-    let (rem, functions) = match parser::program(&text) {
+    let (_, functions) = match parser::program(&text) {
         Ok(res) => res,
-        Err(e) => panic!(format!("{:?}", e)),
+        Err(nom::Err::Incomplete(n)) => {
+            return Err(CompilerError::Syntax {
+                message: format!(
+                    "Undertermined syntax. More input needed to be sure: {:?}",
+                    n
+                ),
+            });
+        }
+        Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => {
+            return Err(CompilerError::Syntax {
+                message: convert_error(&text, e),
+            });
+        }
     };
-    if rem != "" {
-        panic!(format!(
-            "Cant completely parse program. Remaining: {:?}",
-            rem
-        ))
-    }
 
     let mut uniq = HashSet::new();
     if !functions.iter().all(|x| uniq.insert(x.name.clone())) {
@@ -50,7 +64,8 @@ fn main() {
         .create_jit_execution_engine(OptimizationLevel::Default)
         .unwrap();
 
-    let function = module.get_function("main").unwrap();
+    let function = module.get_function("main").expect("No main function");
     let res = unsafe { ee.run_function_as_main(&function, &[]) };
     println!("{:?}", res);
+    Ok(())
 }

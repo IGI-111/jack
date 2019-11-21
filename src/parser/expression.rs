@@ -4,21 +4,22 @@ use crate::ir::*;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while1};
 use nom::combinator::opt;
+use nom::error::VerboseError;
 use nom::multi::{many0, separated_list};
 use nom::sequence::tuple;
 use nom::IResult;
 
-fn int_literal(i: &str) -> IResult<&str, RawNode> {
+fn int_literal(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     let (i, num) = take_while1(move |c: char| c.is_numeric())(i)?;
     Ok((i, RawNode::new(RawExpression::Int(num.parse().unwrap()))))
 }
 
-fn bool_literal(i: &str) -> IResult<&str, RawNode> {
+fn bool_literal(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     let (i, val) = alt((tag("true"), tag("false")))(i)?;
     Ok((i, RawNode::new(RawExpression::Bool(val == "true"))))
 }
 
-fn array_literal(i: &str) -> IResult<&str, RawNode> {
+fn array_literal(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     let (i, (_, _, exprs, _, _)) = tuple((
         tag("["),
         sp,
@@ -34,16 +35,16 @@ fn array_literal(i: &str) -> IResult<&str, RawNode> {
     ))
 }
 
-fn literal(i: &str) -> IResult<&str, RawNode> {
+fn literal(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     alt((int_literal, bool_literal, array_literal))(i)
 }
 
-fn parens(i: &str) -> IResult<&str, RawNode> {
+fn parens(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     let (i, (_, _, expr, _, _)) = tuple((tag("("), sp, expression, sp, tag(")")))(i)?;
     Ok((i, expr))
 }
 
-fn fun_call(i: &str) -> IResult<&str, RawNode> {
+fn fun_call(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     let (i, (id, _, _, _, args, _, _)) = tuple((
         identifier,
         sp,
@@ -62,16 +63,16 @@ fn fun_call(i: &str) -> IResult<&str, RawNode> {
     ))
 }
 
-fn identifier_expr(i: &str) -> IResult<&str, RawNode> {
+fn identifier_expr(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     let (i, id) = identifier(i)?;
     Ok((i, RawNode::new(RawExpression::Id(id.to_string()))))
 }
 
-fn terminal(i: &str) -> IResult<&str, RawNode> {
+fn terminal(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     alt((parens, literal, fun_call, identifier_expr))(i)
 }
 
-fn deref_expr(i: &str) -> IResult<&str, RawNode> {
+fn deref_expr(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     let (i, (ops, expr)) = tuple((many0(tuple((alt((tag("-"), tag("!"))), sp))), terminal))(i)?;
     Ok((
         i,
@@ -83,7 +84,7 @@ fn deref_expr(i: &str) -> IResult<&str, RawNode> {
     ))
 }
 
-fn factor(i: &str) -> IResult<&str, RawNode> {
+fn factor(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     let (i, (first, remainder)) = tuple((
         deref_expr,
         many0(tuple((sp, tag("["), sp, int_literal, sp, tag("]")))),
@@ -102,7 +103,7 @@ fn factor(i: &str) -> IResult<&str, RawNode> {
     ))
 }
 
-fn term(i: &str) -> IResult<&str, RawNode> {
+fn term(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     let (i, (first, remainder)) = tuple((
         factor,
         many0(tuple((sp, alt((tag("*"), tag("/"))), sp, factor))),
@@ -127,7 +128,7 @@ fn term(i: &str) -> IResult<&str, RawNode> {
     ))
 }
 
-fn additive_expr(i: &str) -> IResult<&str, RawNode> {
+fn additive_expr(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     let (i, (first, remainder)) = tuple((
         term,
         many0(tuple((sp, alt((tag("+"), tag("-"))), sp, term))),
@@ -152,7 +153,7 @@ fn additive_expr(i: &str) -> IResult<&str, RawNode> {
     ))
 }
 
-fn relational_expr(i: &str) -> IResult<&str, RawNode> {
+fn relational_expr(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     let (i, (first, remainder)) = tuple((
         additive_expr,
         many0(tuple((
@@ -193,7 +194,7 @@ fn relational_expr(i: &str) -> IResult<&str, RawNode> {
     ))
 }
 
-fn equality_expr(i: &str) -> IResult<&str, RawNode> {
+fn equality_expr(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     let (i, (first, remainder)) = tuple((
         relational_expr,
         many0(tuple((
@@ -223,7 +224,7 @@ fn equality_expr(i: &str) -> IResult<&str, RawNode> {
     ))
 }
 
-fn logical_and_expr(i: &str) -> IResult<&str, RawNode> {
+fn logical_and_expr(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     let (i, (first, remainder)) = tuple((
         equality_expr,
         many0(tuple((sp, tag("&&"), sp, equality_expr))),
@@ -242,7 +243,7 @@ fn logical_and_expr(i: &str) -> IResult<&str, RawNode> {
     ))
 }
 
-fn logical_or_expr(i: &str) -> IResult<&str, RawNode> {
+fn logical_or_expr(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     let (i, (first, remainder)) = tuple((
         logical_and_expr,
         many0(tuple((sp, tag("||"), sp, logical_and_expr))),
@@ -261,7 +262,7 @@ fn logical_or_expr(i: &str) -> IResult<&str, RawNode> {
     ))
 }
 
-fn conditional_expr(i: &str) -> IResult<&str, RawNode> {
+fn conditional_expr(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     let (i, (_, _, top_cond, _, _, _, top_exp, _, elifs, _, _, top_alt)) = tuple((
         tag("if"),
         sp,
@@ -305,7 +306,7 @@ fn conditional_expr(i: &str) -> IResult<&str, RawNode> {
     Ok((i, node))
 }
 
-fn let_expr(i: &str) -> IResult<&str, RawNode> {
+fn let_expr(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     let (i, (_, _, id, _, _, _, val, _, _, _, expr)) = tuple((
         tag("let"),
         sp,
@@ -329,7 +330,7 @@ fn let_expr(i: &str) -> IResult<&str, RawNode> {
     ))
 }
 
-pub fn expression(i: &str) -> IResult<&str, RawNode> {
+pub fn expression(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     alt((let_expr, conditional_expr, logical_or_expr))(i)
 }
 
