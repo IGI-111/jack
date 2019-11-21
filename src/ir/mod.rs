@@ -1,3 +1,4 @@
+use crate::error::{CompilerError, Result};
 pub mod raw;
 pub mod sem;
 
@@ -44,5 +45,36 @@ impl Type {
             Type::Function(ret, args) => (ret, args),
             _ => panic!("Not a Function type"),
         }
+    }
+    pub fn assert_eq(&self, other: &Self) -> Result<()> {
+        if self != other {
+            return Err(CompilerError::TypeConflict(self.clone(), other.clone()).into());
+        }
+        Ok(())
+    }
+}
+
+impl std::fmt::Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Type::Int => "int".to_string(),
+                Type::Bool => "bool".to_string(),
+                Type::Array(len, ty) => format!("[{};{}]", ty, len),
+                Type::Function(ret, args) => format!(
+                    "fun ({}): {}",
+                    args.iter()
+                        .map(|arg| {
+                            let (name, ty) = arg.as_ref();
+                            format!("{}: {}", name, ty)
+                        })
+                        .collect::<Vec<String>>()
+                        .join(","),
+                    ret,
+                ),
+            }
+        )
     }
 }

@@ -33,17 +33,14 @@ fn try_main() -> Result<()> {
     let (_, functions) = match parser::program(&text) {
         Ok(res) => res,
         Err(nom::Err::Incomplete(n)) => {
-            return Err(CompilerError::Syntax {
-                message: format!(
-                    "Undertermined syntax. More input needed to be sure: {:?}",
-                    n
-                ),
-            });
+            return Err(CompilerError::Syntax(format!(
+                "Undertermined syntax. More input needed to be sure: {:?}",
+                n
+            ))
+            .into());
         }
         Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => {
-            return Err(CompilerError::Syntax {
-                message: convert_error(&text, e),
-            });
+            return Err(CompilerError::Syntax(convert_error(&text, e)).into());
         }
     };
 
@@ -54,10 +51,10 @@ fn try_main() -> Result<()> {
 
     let ctx =
         ir::sem::SemContext::from_funs(functions.iter().map(|f| (f.name.clone(), f.ty.clone())));
-    let typed_functions = functions
-        .into_iter()
-        .map(|func| ir::sem::SemFunction::analyze(func, &ctx))
-        .collect::<Vec<_>>();
+    let mut typed_functions = Vec::new();
+    for func in functions.into_iter() {
+        typed_functions.push(ir::sem::SemFunction::analyze(func, &ctx)?);
+    }
 
     let module = gen(&typed_functions);
     let ee = module

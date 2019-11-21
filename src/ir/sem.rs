@@ -1,5 +1,6 @@
 use super::raw::*;
 use super::*;
+use crate::error::{CompilerError, Result};
 use std::collections::HashMap;
 
 #[derive(Debug, PartialEq)]
@@ -24,22 +25,22 @@ pub struct SemFunction {
 }
 
 impl SemFunction {
-    pub fn analyze(fun: RawFunction, ctx: &SemContext) -> Self {
+    pub fn analyze(fun: RawFunction, ctx: &SemContext) -> Result<Self> {
         let name = fun.name.to_string();
         let (ret, arg_types) = fun.ty.into_function();
         let args = fun.args;
 
         let ctx = ctx.extend_vars(args.iter().cloned());
-        let root = SemNode::analyze(fun.root, &ctx);
-        assert_eq!(*root.ty(), *ret);
+        let root = SemNode::analyze(fun.root, &ctx)?;
+        (&*root.ty()).assert_eq(&*ret)?;
         let ty = Type::Function(ret, arg_types);
 
-        Self {
+        Ok(Self {
             root,
             name,
             ty,
             args,
-        }
+        })
     }
     pub fn ty(&self) -> &Type {
         &self.ty
@@ -96,62 +97,74 @@ pub struct SemNode {
 }
 
 impl SemNode {
-    pub fn analyze(node: RawNode, ctx: &SemContext) -> Self {
+    pub fn analyze(node: RawNode, ctx: &SemContext) -> Result<Self> {
         let expr = match node.into_expr() {
             RawExpression::Int(val) => SemExpression::Int(val),
             RawExpression::Bool(val) => SemExpression::Bool(val),
             RawExpression::Id(val) => SemExpression::Id(val),
             RawExpression::Let(id, val, expr) => {
-                let val = Box::new(Self::analyze(*val, ctx));
+                let val = Box::new(Self::analyze(*val, ctx)?);
                 let ctx = ctx.extend_var(id.clone(), val.ty().clone());
-                let expr = Box::new(Self::analyze(*expr, &ctx));
+                let expr = Box::new(Self::analyze(*expr, &ctx)?);
                 SemExpression::Let(id, val, expr)
             }
-            RawExpression::Array(val) => SemExpression::Array(
-                val.into_iter()
-                    .map(|n| Box::new(Self::analyze(*n, ctx)))
-                    .collect(),
-            ),
+            RawExpression::Array(val) => {
+                let mut out = Vec::new();
+                for n in val {
+                    out.push(Box::new(Self::analyze(*n, ctx)?));
+                }
+                SemExpression::Array(out)
+            }
             RawExpression::BinaryOp(op, a, b) => SemExpression::BinaryOp(
                 op.clone(),
-                Box::new(Self::analyze(*a, ctx)),
-                Box::new(Self::analyze(*b, ctx)),
+                Box::new(Self::analyze(*a, ctx)?),
+                Box::new(Self::analyze(*b, ctx)?),
             ),
             RawExpression::UnaryOp(op, a) => {
-                SemExpression::UnaryOp(op.clone(), Box::new(Self::analyze(*a, ctx)))
+                SemExpression::UnaryOp(op.clone(), Box::new(Self::analyze(*a, ctx)?))
             }
             RawExpression::Conditional(cond, then, alt) => SemExpression::Conditional(
-                Box::new(Self::analyze(*cond, ctx)),
-                Box::new(Self::analyze(*then, ctx)),
-                Box::new(Self::analyze(*alt, ctx)),
+                Box::new(Self::analyze(*cond, ctx)?),
+                Box::new(Self::analyze(*then, ctx)?),
+                Box::new(Self::analyze(*alt, ctx)?),
             ),
-            RawExpression::FunCall(id, args) => SemExpression::FunCall(
-                id.to_string(),
-                args.into_iter()
-                    .map(|a| Box::new(Self::analyze(*a, ctx)))
-                    .collect::<Vec<_>>(),
-            ),
+            RawExpression::FunCall(id, args) => {
+                let mut out_args = Vec::new();
+                for a in args {
+                    out_args.push(Box::new(Self::analyze(*a, ctx)?));
+                }
+                SemExpression::FunCall(id.to_string(), out_args)
+            }
         };
 
         let ty = match &expr {
             SemExpression::Int(_) => Type::Int,
             SemExpression::Bool(_) => Type::Bool,
-            SemExpression::Id(name) => ctx
-                .vars()
-                .get(name)
-                .expect(&format!("Unknown variable {}", name))
-                .clone(),
+            SemExpression::Id(name) => match ctx.vars().get(name) {
+                Some(ty) => ty.clone(),
+                None => return Err(CompilerError::UnknownVariable(name.to_string()).into()),
+            },
             SemExpression::Let(_id, _val, expr) => expr.ty().clone(),
             SemExpression::FunCall(id, args) => {
-                let ftype = ctx.funs().get(id).expect("Unknown function");
+                let ftype = match ctx.funs().get(id) {
+                    Some(ty) => ty.clone(),
+                    None => return Err(CompilerError::UnknownFunction(id.to_string()).into()),
+                };
 
                 let (ret, argdefs) = ftype.as_function();
-                assert_eq!(args.len(), argdefs.len());
+                if args.len() != argdefs.len() {
+                    return Err(CompilerError::WrongNumberOfArguments(
+                        id.to_string(),
+                        argdefs.len(),
+                        args.len(),
+                    )
+                    .into());
+                }
 
                 for ((_arg_name, arg_type), arg_node) in
                     argdefs.iter().map(|a| a.as_ref()).zip(args.iter())
                 {
-                    assert_eq!(arg_type, arg_node.ty());
+                    arg_type.assert_eq(arg_node.ty())?;
                 }
                 (**ret).clone()
             }
@@ -162,41 +175,41 @@ impl SemNode {
                     Type::Int
                 };
                 for val in vals.iter() {
-                    assert_eq!(val.ty(), &inner_type);
+                    val.ty().assert_eq(&inner_type)?;
                 }
                 Type::Array(vals.len() as u64, Box::new(inner_type))
             }
             SemExpression::UnaryOp(op, a) => match op {
                 UnaryOp::Minus => {
-                    assert_eq!(a.ty(), &Type::Int);
+                    a.ty().assert_eq(&Type::Int)?;
                     Type::Int
                 }
                 UnaryOp::Not => {
-                    assert_eq!(a.ty(), &Type::Bool);
+                    a.ty().assert_eq(&Type::Bool)?;
                     Type::Bool
                 }
             },
             SemExpression::BinaryOp(op, a, b) => match op {
                 BinaryOp::Multiply | BinaryOp::Divide | BinaryOp::Add | BinaryOp::Sub => {
-                    assert_eq!(a.ty(), &Type::Int);
-                    assert_eq!(b.ty(), &Type::Int);
+                    a.ty().assert_eq(&Type::Int)?;
+                    b.ty().assert_eq(&Type::Int)?;
                     Type::Int
                 }
                 BinaryOp::LessThan
                 | BinaryOp::LessThanOrEqual
                 | BinaryOp::GreaterThan
                 | BinaryOp::GreaterThanOrEqual => {
-                    assert_eq!(a.ty(), &Type::Int);
-                    assert_eq!(b.ty(), &Type::Int);
+                    a.ty().assert_eq(&Type::Int)?;
+                    b.ty().assert_eq(&Type::Int)?;
                     Type::Bool
                 }
                 BinaryOp::Equal | BinaryOp::NotEqual => {
-                    assert_eq!(a.ty(), b.ty());
+                    a.ty().assert_eq(b.ty())?;
                     Type::Bool
                 }
                 BinaryOp::And | BinaryOp::Or => {
-                    assert_eq!(a.ty(), &Type::Bool);
-                    assert_eq!(b.ty(), &Type::Bool);
+                    a.ty().assert_eq(&Type::Bool)?;
+                    b.ty().assert_eq(&Type::Bool)?;
                     Type::Bool
                 }
                 BinaryOp::ArrayDeref => {
@@ -207,18 +220,18 @@ impl SemNode {
                             panic!("Cannot index by anything else than a literal integer");
                         }
                     } else {
-                        panic!(format!("{:?} is not an array", a.ty()))
+                        return Err(CompilerError::CannotIndex(a.ty().clone()).into());
                     }
                 }
             },
             SemExpression::Conditional(cond, then, alt) => {
-                assert_eq!(cond.ty(), &Type::Bool);
-                assert_eq!(then.ty(), alt.ty());
+                cond.ty().assert_eq(&Type::Bool)?;
+                then.ty().assert_eq(alt.ty())?;
                 then.ty().clone()
             }
         };
 
-        Self { expr, ty }
+        Ok(Self { expr, ty })
     }
     pub fn ty(&self) -> &Type {
         &self.ty
