@@ -2,7 +2,7 @@
 
 Jack is a simple pure-functional programming language inspired by ML.
 
-This repository hosts a 3-step compiler written in Rust that does parsing, semantic analysis (including type checking) and generates code in LLVM IR.
+This repository hosts a 3-step compiler written in Rust that does parsing, semantic analysis (including type checking) and generates LLVM IR.
 It then runs the IR through the LLVM JIT.
 
 Here's an example of a Jack program you can run using `cargo run fib.ml`
