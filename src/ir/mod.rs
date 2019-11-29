@@ -29,6 +29,7 @@ pub enum BinaryOp {
 pub enum Type {
     Int,
     Bool,
+    Float,
     Array(u64, Box<Type>),
     Function(Box<Type>, Vec<Box<(String, Type)>>),
 }
@@ -62,6 +63,7 @@ impl std::fmt::Display for Type {
             match self {
                 Type::Int => "int".to_string(),
                 Type::Bool => "bool".to_string(),
+                Type::Float => "float".to_string(),
                 Type::Array(len, ty) => format!("[{};{}]", ty, len),
                 Type::Function(ret, args) => format!(
                     "fun ({}): {}",

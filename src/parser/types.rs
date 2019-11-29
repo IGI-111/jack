@@ -31,6 +31,11 @@ fn int_type(i: &str) -> IResult<&str, Type, VerboseError<&str>> {
     Ok((i, Type::Int))
 }
 
+fn float_type(i: &str) -> IResult<&str, Type, VerboseError<&str>> {
+    let (i, _) = tag("float")(i)?;
+    Ok((i, Type::Float))
+}
+
 pub fn type_literal(i: &str) -> IResult<&str, Type, VerboseError<&str>> {
-    alt((int_type, bool_type, array_type))(i)
+    alt((float_type, int_type, bool_type, array_type))(i)
 }

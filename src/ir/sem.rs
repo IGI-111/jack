@@ -7,6 +7,7 @@ use std::collections::HashMap;
 pub enum SemExpression {
     Int(u64),
     Bool(bool),
+    Float(f64),
     Array(Vec<Box<SemNode>>),
     Id(String), // TODO: semantic checking step
     FunCall(String, Vec<Box<SemNode>>),
@@ -101,6 +102,7 @@ impl SemNode {
         let expr = match node.into_expr() {
             RawExpression::Int(val) => SemExpression::Int(val),
             RawExpression::Bool(val) => SemExpression::Bool(val),
+            RawExpression::Float(val) => SemExpression::Float(val),
             RawExpression::Id(val) => SemExpression::Id(val),
             RawExpression::Let(id, val, expr) => {
                 let val = Box::new(Self::analyze(*val, ctx)?);
@@ -140,6 +142,7 @@ impl SemNode {
         let ty = match &expr {
             SemExpression::Int(_) => Type::Int,
             SemExpression::Bool(_) => Type::Bool,
+            SemExpression::Float(_) => Type::Float,
             SemExpression::Id(name) => match ctx.vars().get(name) {
                 Some(ty) => ty.clone(),
                 None => return Err(CompilerError::UnknownVariable(name.to_string()).into()),

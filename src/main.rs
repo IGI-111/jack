@@ -4,6 +4,7 @@ mod ir;
 mod parser;
 
 use crate::error::{CompilerError, Result};
+use crate::ir::raw::RawFunction;
 use gen::gen;
 use inkwell::OptimizationLevel;
 use nom::error::convert_error;
@@ -30,19 +31,7 @@ fn try_main() -> Result<()> {
     file.read_to_string(&mut text)
         .expect(&format!("Can't read file: {}", path.display()));
 
-    let (_, functions) = match parser::program(&text) {
-        Ok(res) => res,
-        Err(nom::Err::Incomplete(n)) => {
-            return Err(CompilerError::Syntax(format!(
-                "Undertermined syntax. More input needed to be sure: {:?}",
-                n
-            ))
-            .into());
-        }
-        Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => {
-            return Err(CompilerError::Syntax(convert_error(&text, e)).into());
-        }
-    };
+    let functions = parse(&text)?;
 
     let mut uniq = HashSet::new();
     if !functions.iter().all(|x| uniq.insert(x.name.clone())) {
@@ -65,4 +54,35 @@ fn try_main() -> Result<()> {
     let res = unsafe { ee.run_function_as_main(&function, &[]) };
     println!("{:?}", res);
     Ok(())
+}
+
+fn parse(text: &str) -> Result<Vec<RawFunction>> {
+    let (_, text) = match parser::comments_ommited(&text) {
+        Ok(res) => res,
+        Err(nom::Err::Incomplete(n)) => {
+            return Err(CompilerError::Syntax(format!(
+                "Undertermined syntax. More input needed to be sure: {:?}",
+                n
+            ))
+            .into());
+        }
+        Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => {
+            return Err(CompilerError::Syntax(convert_error(&text, e)).into());
+        }
+    };
+
+    let (_, functions) = match parser::program(&text) {
+        Ok(res) => res,
+        Err(nom::Err::Incomplete(n)) => {
+            return Err(CompilerError::Syntax(format!(
+                "Undertermined syntax. More input needed to be sure: {:?}",
+                n
+            ))
+            .into());
+        }
+        Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => {
+            return Err(CompilerError::Syntax(convert_error(&text, e)).into());
+        }
+    };
+    Ok(functions)
 }

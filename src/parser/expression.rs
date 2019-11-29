@@ -14,6 +14,20 @@ fn int_literal(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     Ok((i, RawNode::new(RawExpression::Int(num.parse().unwrap()))))
 }
 
+fn float_literal(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
+    let (i, (u, _, f)) = tuple((
+        take_while1(move |c: char| c.is_numeric()),
+        tag("."),
+        take_while1(move |c: char| c.is_numeric()),
+    ))(i)?;
+    Ok((
+        i,
+        RawNode::new(RawExpression::Float(
+            format!("{}.{}", u, f).parse().unwrap(),
+        )),
+    ))
+}
+
 fn bool_literal(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     let (i, val) = alt((tag("true"), tag("false")))(i)?;
     Ok((i, RawNode::new(RawExpression::Bool(val == "true"))))
@@ -36,7 +50,7 @@ fn array_literal(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
 }
 
 fn literal(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
-    alt((int_literal, bool_literal, array_literal))(i)
+    alt((float_literal, int_literal, bool_literal, array_literal))(i)
 }
 
 fn parens(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {

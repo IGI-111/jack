@@ -12,6 +12,7 @@ pub struct RawFunction {
 pub enum RawExpression {
     Int(u64),
     Bool(bool),
+    Float(f64),
     Array(Vec<Box<RawNode>>),
     FunCall(String, Vec<Box<RawNode>>),
     Id(String), // TODO: semantic checking step

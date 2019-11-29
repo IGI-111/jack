@@ -42,6 +42,7 @@ impl Realizable for Type {
         match self {
             Type::Bool => BasicTypeEnum::IntType(context.bool_type()),
             Type::Int => BasicTypeEnum::IntType(context.i64_type()),
+            Type::Float => BasicTypeEnum::FloatType(context.f64_type()),
             Type::Array(n, elem) => BasicTypeEnum::ArrayType(match elem.real_type(context) {
                 BasicTypeEnum::IntType(t) => t.array_type(*n as u32),
                 BasicTypeEnum::ArrayType(t) => t.array_type(*n as u32),
@@ -65,25 +66,21 @@ pub fn gen(funcs: &[SemFunction]) -> Module {
         .map(|fun| {
             let fn_name = fun.name();
             let fn_type = match fun.ty() {
-                Type::Function(ty, args) => match **ty {
-                    Type::Bool | Type::Int => ty.real_type(&context).into_int_type().fn_type(
-                        &args
-                            .into_iter()
-                            .map(|arg| {
-                                let (_arg_name, arg_type) = arg.as_ref();
-                                match arg_type {
-                                    Type::Bool | Type::Int => arg_type
-                                        .real_type(&context)
-                                        .into_int_type()
-                                        .as_basic_type_enum(),
-                                    _ => panic!("Argument of function is not integer type"),
+                Type::Function(ty, args) => {
+                    let args_types = args
+                        .into_iter()
+                        .map(|arg| {
+                            let (_arg_name, arg_type) = arg.as_ref();
+                            match arg_type {
+                                Type::Bool | Type::Int => {
+                                    arg_type.real_type(&context).as_basic_type_enum()
                                 }
-                            })
-                            .collect::<Vec<_>>(),
-                        false,
-                    ),
-                    _ => panic!("Function does not return integer type"),
-                },
+                                _ => panic!("Argument of function is not number type"),
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    ty.real_type(&context).fn_type(&args_types, false)
+                }
                 _ => panic!("Function does not have a function type"),
             };
             (

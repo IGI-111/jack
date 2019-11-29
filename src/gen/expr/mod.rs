@@ -37,6 +37,9 @@ pub(super) fn gen_expr(root: &SemNode, ctx: &GenerationContext) -> BasicValueEnu
         SemExpression::Int(val) => {
             BasicValueEnum::IntValue(ctx.context.i64_type().const_int(*val, false))
         }
+        SemExpression::Float(val) => {
+            BasicValueEnum::FloatValue(ctx.context.f64_type().const_float(*val))
+        }
         SemExpression::UnaryOp(op, a) => match op {
             UnaryOp::Minus => BasicValueEnum::IntValue(ctx.builder.build_int_sub(
                 ctx.context.i64_type().const_zero(),
