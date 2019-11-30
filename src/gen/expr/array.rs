@@ -3,7 +3,7 @@ use super::gen_expr;
 use crate::ir::sem::*;
 use crate::ir::*;
 use inkwell::types::BasicTypeEnum;
-use inkwell::values::{ArrayValue, BasicValueEnum, IntValue};
+use inkwell::values::{ArrayValue, BasicValueEnum, FloatValue, IntValue};
 
 pub(super) fn gen_array(
     vals: &Vec<Box<SemNode>>,
@@ -28,14 +28,19 @@ pub(super) fn gen_array(
                 .map(|e| e.into_int_value())
                 .collect::<Vec<IntValue>>(),
         ),
+        BasicTypeEnum::FloatType(t) => t.const_array(
+            &elems
+                .into_iter()
+                .map(|e| e.into_float_value())
+                .collect::<Vec<FloatValue>>(),
+        ),
         BasicTypeEnum::ArrayType(t) => t.const_array(
             &elems
                 .into_iter()
                 .map(|e| e.into_array_value())
                 .collect::<Vec<ArrayValue>>(),
         ),
-        BasicTypeEnum::FloatType(_)
-        | BasicTypeEnum::PointerType(_)
+        BasicTypeEnum::PointerType(_)
         | BasicTypeEnum::VectorType(_)
         | BasicTypeEnum::StructType(_) => panic!(),
     };

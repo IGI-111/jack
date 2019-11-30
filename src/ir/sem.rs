@@ -182,51 +182,40 @@ impl SemNode {
                 }
                 Type::Array(vals.len() as u64, Box::new(inner_type))
             }
-            SemExpression::UnaryOp(op, a) => match op {
-                UnaryOp::Minus => {
-                    a.ty().assert_eq(&Type::Int)?;
-                    Type::Int
+            SemExpression::UnaryOp(op, a) => {
+                op.check_ty(a.ty())?;
+                match op {
+                    UnaryOp::Minus => Type::Int,
+                    UnaryOp::Not => Type::Bool,
                 }
-                UnaryOp::Not => {
-                    a.ty().assert_eq(&Type::Bool)?;
-                    Type::Bool
-                }
-            },
-            SemExpression::BinaryOp(op, a, b) => match op {
-                BinaryOp::Multiply | BinaryOp::Divide | BinaryOp::Add | BinaryOp::Sub => {
-                    a.ty().assert_eq(&Type::Int)?;
-                    b.ty().assert_eq(&Type::Int)?;
-                    Type::Int
-                }
-                BinaryOp::LessThan
-                | BinaryOp::LessThanOrEqual
-                | BinaryOp::GreaterThan
-                | BinaryOp::GreaterThanOrEqual => {
-                    a.ty().assert_eq(&Type::Int)?;
-                    b.ty().assert_eq(&Type::Int)?;
-                    Type::Bool
-                }
-                BinaryOp::Equal | BinaryOp::NotEqual => {
-                    a.ty().assert_eq(b.ty())?;
-                    Type::Bool
-                }
-                BinaryOp::And | BinaryOp::Or => {
-                    a.ty().assert_eq(&Type::Bool)?;
-                    b.ty().assert_eq(&Type::Bool)?;
-                    Type::Bool
-                }
-                BinaryOp::ArrayDeref => {
-                    if let Type::Array(_, elem_type) = a.ty() {
-                        if let SemExpression::Int(_) = b.expr() {
-                            (**elem_type).clone()
+            }
+            SemExpression::BinaryOp(op, a, b) => {
+                op.check_ty(a.ty(), b.ty())?;
+                match op {
+                    BinaryOp::Multiply | BinaryOp::Divide | BinaryOp::Add | BinaryOp::Sub => {
+                        a.ty().clone()
+                    }
+                    BinaryOp::LessThan
+                    | BinaryOp::LessThanOrEqual
+                    | BinaryOp::GreaterThan
+                    | BinaryOp::GreaterThanOrEqual
+                    | BinaryOp::Equal
+                    | BinaryOp::NotEqual
+                    | BinaryOp::And
+                    | BinaryOp::Or => Type::Bool,
+                    BinaryOp::ArrayDeref => {
+                        if let Type::Array(_, elem_type) = a.ty() {
+                            if let SemExpression::Int(_) = b.expr() {
+                                (**elem_type).clone()
+                            } else {
+                                unreachable!()
+                            }
                         } else {
-                            panic!("Cannot index by anything else than a literal integer");
+                            return Err(CompilerError::CannotIndex(a.ty().clone()).into());
                         }
-                    } else {
-                        return Err(CompilerError::CannotIndex(a.ty().clone()).into());
                     }
                 }
-            },
+            }
             SemExpression::Conditional(cond, then, alt) => {
                 cond.ty().assert_eq(&Type::Bool)?;
                 then.ty().assert_eq(alt.ty())?;

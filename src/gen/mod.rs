@@ -106,10 +106,7 @@ pub fn gen(funcs: &[SemFunction]) -> Module {
 
         let main_block = ctx.context.append_basic_block(&function, "");
         ctx.builder.position_at_end(&main_block);
-        let ret_val = match gen_expr(fun.root(), &ctx) {
-            BasicValueEnum::IntValue(val) => val,
-            _ => unreachable!(),
-        };
+        let ret_val = gen_expr(fun.root(), &ctx);
 
         ctx.builder.build_return(Some(&ret_val));
     }
