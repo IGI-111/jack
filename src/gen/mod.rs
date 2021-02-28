@@ -68,7 +68,7 @@ impl Jit {
 
         let main_id = ids
             .get("main")
-            .ok_or(CompilerError::BackendError("No main function".to_string()))?;
+            .ok_or_else(|| CompilerError::BackendError("No main function".to_string()))?;
 
         // finalize relocation
         self.module.finalize_definitions();

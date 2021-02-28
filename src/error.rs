@@ -28,4 +28,8 @@ pub enum CompilerError {
     CannotIndex(Type),
     #[error(display = "Backend error: {}", 0)]
     BackendError(String),
+    #[error(display = "Can't read file: {}", 0)]
+    FileError(String),
+    #[error(display = "You must specity an imput file.")]
+    NoInput,
 }

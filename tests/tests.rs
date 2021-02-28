@@ -19,3 +19,8 @@ fn float_test() {
 fn empty_test() {
     assert!(compile_and_run("").is_err());
 }
+
+#[test]
+fn simple_test() {
+    assert_eq!(compile_and_run(include_str!("simple.ml")).unwrap(), 0);
+}
