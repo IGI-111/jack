@@ -49,7 +49,7 @@ impl Jit {
             let id = self
                 .module
                 .declare_function(&name, Linkage::Export, &sig)
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| CompilerError::BackendError(e.to_string()))?;
             ids.insert(name, id);
         }
 
@@ -87,10 +87,10 @@ impl Jit {
         let ret_type = if let ir::Type::Function(ret, _args) = func.ty() {
             real_type(ret)?
         } else {
-            return Err(Box::new(CompilerError::BackendError(format!(
+            return Err(CompilerError::BackendError(format!(
                 "{:?} is not a function type",
                 func.ty()
-            ))));
+            )));
         };
         ctx.func.signature.returns.push(AbiParam::new(ret_type));
 
@@ -116,7 +116,7 @@ impl Jit {
         }
         let mut trans = FunctionTranslator {
             builder,
-            _variables: variables,
+            variables,
             module: &mut self.module,
         };
 
@@ -130,7 +130,7 @@ impl Jit {
 
 struct FunctionTranslator<'a, M: Module> {
     builder: FunctionBuilder<'a>,
-    _variables: HashMap<String, Variable>,
+    variables: HashMap<String, Variable>,
     module: &'a mut M,
 }
 
@@ -141,7 +141,12 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             SemExpression::Int(val) => Ok(self.builder.ins().iconst(real_ty, *val)),
             SemExpression::Bool(val) => Ok(self.builder.ins().bconst(real_ty, *val)),
             SemExpression::Float(val) => Ok(self.builder.ins().f64const(*val)),
-            // Id(String), // TODO: semantic checking step
+            SemExpression::Id(id) => {
+                let _variable = self.variables.get(id).ok_or_else(|| {
+                    CompilerError::BackendError(format!("No variable {} available", id))
+                })?;
+                panic!();
+            } // TODO: semantic checking step?
             SemExpression::FunCall(func_name, args) => {
                 self.translate_funcall(func_name, args, real_ty)
             }
@@ -152,20 +157,20 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                     (ir::UnaryOp::Minus, ir::Type::Int) => Ok(self.builder.ins().ineg(operand)),
                     (ir::UnaryOp::Minus, ir::Type::Float) => Ok(self.builder.ins().fneg(operand)),
                     (ir::UnaryOp::Not, ir::Type::Bool) => Ok(self.builder.ins().bnot(operand)),
-                    _ => Err(Box::new(CompilerError::BackendError(format!(
+                    _ => Err(CompilerError::BackendError(format!(
                         "Invalid unary operation {:?} for type {:?}",
                         op,
                         node.ty()
-                    )))),
+                    ))),
                 }
             }
             // Conditional(Box<SemNode>, Box<SemNode>, Box<SemNode>),
             // Let(String, Box<SemNode>, Box<SemNode>),
             // Array(Vec<SemNode>),
-            _ => Err(Box::new(CompilerError::BackendError(format!(
+            _ => Err(CompilerError::BackendError(format!(
                 "Unsupported node {:?}",
                 node
-            )))),
+            ))),
         }
     }
     fn translate_funcall(
@@ -204,9 +209,9 @@ fn real_type(ty: &ir::Type) -> Result<cranelift::prelude::Type> {
         ir::Type::Int => Ok(types::I64),
         ir::Type::Bool => Ok(types::B1),
         ir::Type::Float => Ok(types::F64),
-        _ => Err(Box::new(CompilerError::BackendError(format!(
+        _ => Err(CompilerError::BackendError(format!(
             "Unsupported type {:?}",
             ty
-        )))),
+        ))),
     }
 }

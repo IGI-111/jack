@@ -13,13 +13,13 @@ fn main() {
 fn try_main() -> Result<()> {
     let arg = std::env::args()
         .nth(1)
-        .ok_or_else(|| Box::new(CompilerError::NoInput))?;
+        .ok_or_else(|| CompilerError::NoInput)?;
     let path = Path::new(&arg);
-    let mut file = File::open(path)
-        .map_err(|_| Box::new(CompilerError::FileError(path.display().to_string())))?;
+    let mut file =
+        File::open(path).map_err(|_| CompilerError::FileError(path.display().to_string()))?;
     let mut text = String::new();
     file.read_to_string(&mut text)
-        .map_err(|_| Box::new(CompilerError::FileError(path.display().to_string())))?;
+        .map_err(|_| CompilerError::FileError(path.display().to_string()))?;
 
     let res = jack_lang::compile_and_run(&text)?;
     println!("{:?}", res);

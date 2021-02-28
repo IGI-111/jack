@@ -1,7 +1,7 @@
 use crate::ir::{BinaryOp, Type, UnaryOp};
 use err_derive::Error;
 
-pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+pub type Result<T> = std::result::Result<T, CompilerError>;
 
 #[derive(Debug, Error)]
 pub enum CompilerError {
