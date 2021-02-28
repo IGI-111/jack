@@ -16,7 +16,7 @@ fn try_main() -> Result<()> {
         .next()
         .expect("You must specify an input file");
     let path = Path::new(&arg);
-    let mut file = File::open(path.clone()).expect(&format!("Can't open file: {}", path.display()));
+    let mut file = File::open(path).expect(&format!("Can't open file: {}", path.display()));
     let mut text = String::new();
     file.read_to_string(&mut text)
         .expect(&format!("Can't read file: {}", path.display()));

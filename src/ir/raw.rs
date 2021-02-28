@@ -10,11 +10,11 @@ pub struct RawFunction {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum RawExpression {
-    Int(u64),
+    Int(i64),
     Bool(bool),
     Float(f64),
-    Array(Vec<Box<RawNode>>),
-    FunCall(String, Vec<Box<RawNode>>),
+    Array(Vec<RawNode>),
+    FunCall(String, Vec<RawNode>),
     Id(String), // TODO: semantic checking step
     BinaryOp(BinaryOp, Box<RawNode>, Box<RawNode>),
     UnaryOp(UnaryOp, Box<RawNode>),

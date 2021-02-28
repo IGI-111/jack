@@ -32,7 +32,7 @@ pub fn function(i: &str) -> IResult<&str, RawFunction, VerboseError<&str>> {
         sp,
         expression,
     ))(i)?;
-    let args_types = args.iter().cloned().map(Box::new).collect::<Vec<_>>();
+    let args_types = args.to_vec();
     Ok((
         i,
         RawFunction {

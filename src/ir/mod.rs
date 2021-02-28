@@ -83,7 +83,7 @@ impl BinaryOp {
                 BinaryOp::LessThanOrEqual
                 | BinaryOp::GreaterThanOrEqual
                 | BinaryOp::Equal
-                | BinaryOp::NotEqual => vec![Type::Int],
+                | BinaryOp::NotEqual => vec![Type::Float, Type::Int],
                 BinaryOp::Or | BinaryOp::And => vec![Type::Bool],
                 BinaryOp::ArrayDeref => unreachable!(),
             };
@@ -130,17 +130,17 @@ pub enum Type {
     Bool,
     Float,
     Array(u64, Box<Type>),
-    Function(Box<Type>, Vec<Box<(String, Type)>>),
+    Function(Box<Type>, Vec<(String, Type)>),
 }
 
 impl Type {
-    pub fn as_function(&self) -> (&Box<Type>, &Vec<Box<(String, Type)>>) {
+    pub fn as_function(&self) -> (&Type, &Vec<(String, Type)>) {
         match self {
             Type::Function(ret, args) => (&ret, &args),
             _ => panic!("Not a Function type"),
         }
     }
-    pub fn into_function(self) -> (Box<Type>, Vec<Box<(String, Type)>>) {
+    pub fn into_function(self) -> (Box<Type>, Vec<(String, Type)>) {
         match self {
             Type::Function(ret, args) => (ret, args),
             _ => panic!("Not a Function type"),
@@ -168,7 +168,7 @@ impl std::fmt::Display for Type {
                     "fun ({}): {}",
                     args.iter()
                         .map(|arg| {
-                            let (name, ty) = arg.as_ref();
+                            let (name, ty) = arg;
                             format!("{}: {}", name, ty)
                         })
                         .collect::<Vec<String>>()

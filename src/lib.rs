@@ -1,32 +1,16 @@
 use crate::error::{CompilerError, Result};
 use crate::ir::raw::RawFunction;
-use gen::gen;
-use inkwell::module::Module;
-use inkwell::OptimizationLevel;
+use gen::Jit;
 use nom::error::convert_error;
 use std::collections::HashSet;
+use std::mem;
 
 pub mod error;
 mod gen;
 mod ir;
 mod parser;
 
-pub fn compile(program: &str) -> Result<String> {
-    Ok(compile_module(program)?.print_to_string().to_string())
-}
-
 pub fn compile_and_run(program: &str) -> Result<i32> {
-    let module = compile_module(program)?;
-    let ee = module
-        .create_jit_execution_engine(OptimizationLevel::Default)
-        .unwrap();
-
-    let function = module.get_function("main").expect("No main function");
-    let res = unsafe { ee.run_function_as_main(&function, &[]) };
-    Ok(res)
-}
-
-fn compile_module(program: &str) -> Result<Module> {
     let functions = parse(program)?;
 
     let mut uniq = HashSet::new();
@@ -41,8 +25,12 @@ fn compile_module(program: &str) -> Result<Module> {
         typed_functions.push(ir::sem::SemFunction::analyze(func, &ctx)?);
     }
 
-    let module = gen(&typed_functions);
-    Ok(module)
+    let mut jit = Jit::new();
+    let code_ptr = jit.compile(&typed_functions)?;
+    unsafe {
+        let code_fn = mem::transmute::<_, fn() -> i32>(code_ptr);
+        Ok(code_fn())
+    }
 }
 
 fn parse(text: &str) -> Result<Vec<RawFunction>> {

@@ -14,5 +14,7 @@ path = "src/bin.rs"
 
 [dependencies]
 nom = "5.0.0"
-inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "llvm8-0" }
+cranelift = "0.68.0"
+cranelift-module = "0.68.0"
+cranelift-simplejit = "0.68.0"
 err-derive = "0.2.1"

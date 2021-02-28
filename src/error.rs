@@ -26,4 +26,6 @@ pub enum CompilerError {
     WrongNumberOfArguments(String, usize, usize),
     #[error(display = "Can't index into non array type: {} ", 0)]
     CannotIndex(Type),
+    #[error(display = "Backend error: {}", 0)]
+    BackendError(String),
 }

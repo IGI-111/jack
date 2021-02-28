@@ -41,12 +41,7 @@ fn array_literal(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
         sp,
         tag("]"),
     ))(i)?;
-    Ok((
-        i,
-        RawNode::new(RawExpression::Array(
-            exprs.into_iter().map(Box::new).collect(),
-        )),
-    ))
+    Ok((i, RawNode::new(RawExpression::Array(exprs.to_vec()))))
 }
 
 fn literal(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
@@ -70,10 +65,7 @@ fn fun_call(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     ))(i)?;
     Ok((
         i,
-        RawNode::new(RawExpression::FunCall(
-            id.to_string(),
-            args.into_iter().map(Box::new).collect::<Vec<_>>(),
-        )),
+        RawNode::new(RawExpression::FunCall(id.to_string(), args.to_vec())),
     ))
 }
 

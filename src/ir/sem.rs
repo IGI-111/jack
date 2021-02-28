@@ -5,12 +5,12 @@ use std::collections::HashMap;
 
 #[derive(Debug, PartialEq)]
 pub enum SemExpression {
-    Int(u64),
+    Int(i64),
     Bool(bool),
     Float(f64),
-    Array(Vec<Box<SemNode>>),
+    Array(Vec<SemNode>),
     Id(String), // TODO: semantic checking step
-    FunCall(String, Vec<Box<SemNode>>),
+    FunCall(String, Vec<SemNode>),
     BinaryOp(BinaryOp, Box<SemNode>, Box<SemNode>),
     UnaryOp(UnaryOp, Box<SemNode>),
     Conditional(Box<SemNode>, Box<SemNode>, Box<SemNode>),
@@ -43,6 +43,7 @@ impl SemFunction {
             args,
         })
     }
+
     pub fn ty(&self) -> &Type {
         &self.ty
     }
@@ -113,17 +114,17 @@ impl SemNode {
             RawExpression::Array(val) => {
                 let mut out = Vec::new();
                 for n in val {
-                    out.push(Box::new(Self::analyze(*n, ctx)?));
+                    out.push(Self::analyze(n, ctx)?);
                 }
                 SemExpression::Array(out)
             }
             RawExpression::BinaryOp(op, a, b) => SemExpression::BinaryOp(
-                op.clone(),
+                op,
                 Box::new(Self::analyze(*a, ctx)?),
                 Box::new(Self::analyze(*b, ctx)?),
             ),
             RawExpression::UnaryOp(op, a) => {
-                SemExpression::UnaryOp(op.clone(), Box::new(Self::analyze(*a, ctx)?))
+                SemExpression::UnaryOp(op, Box::new(Self::analyze(*a, ctx)?))
             }
             RawExpression::Conditional(cond, then, alt) => SemExpression::Conditional(
                 Box::new(Self::analyze(*cond, ctx)?),
@@ -133,9 +134,9 @@ impl SemNode {
             RawExpression::FunCall(id, args) => {
                 let mut out_args = Vec::new();
                 for a in args {
-                    out_args.push(Box::new(Self::analyze(*a, ctx)?));
+                    out_args.push(Self::analyze(a, ctx)?);
                 }
-                SemExpression::FunCall(id.to_string(), out_args)
+                SemExpression::FunCall(id, out_args)
             }
         };
 
@@ -164,15 +165,13 @@ impl SemNode {
                     .into());
                 }
 
-                for ((_arg_name, arg_type), arg_node) in
-                    argdefs.iter().map(|a| a.as_ref()).zip(args.iter())
-                {
+                for ((_arg_name, arg_type), arg_node) in argdefs.iter().zip(args.iter()) {
                     arg_type.assert_eq(arg_node.ty())?;
                 }
-                (**ret).clone()
+                (*ret).clone()
             }
             SemExpression::Array(vals) => {
-                let inner_type = if vals.len() > 0 {
+                let inner_type = if !vals.is_empty() {
                     vals[0].ty().clone()
                 } else {
                     Type::Int
