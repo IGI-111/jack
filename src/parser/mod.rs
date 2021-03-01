@@ -19,7 +19,7 @@ fn sp(i: &str) -> IResult<&str, &str, VerboseError<&str>> {
 }
 
 fn identifier(i: &str) -> IResult<&str, &str, VerboseError<&str>> {
-    take_while1(move |c: char| c.is_alphanumeric())(i)
+    take_while1(move |c: char| c.is_alphanumeric() || "_'".contains(c))(i)
 }
 
 fn comment(i: &str) -> IResult<&str, &str, VerboseError<&str>> {

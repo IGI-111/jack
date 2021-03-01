@@ -117,12 +117,13 @@ impl Jit {
             builder.declare_var(var, *variable_types.get(name).unwrap());
             builder.def_var(var, val);
         }
-        let mut trans = FunctionTranslator::new(builder, variables, &mut self.module);
+        let mut trans = FunctionTranslator::new(builder, &mut self.module, variables);
 
         let return_value = trans.translate_expr(func.root())?;
 
         trans.builder().ins().return_(&[return_value]);
         trans.builder().finalize();
+        println!("{}", trans.builder().display(None));
         Ok(())
     }
 }

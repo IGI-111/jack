@@ -10,6 +10,7 @@ pub enum UnaryOp {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum BinaryOp {
+    Equal,
     Multiply,
     Divide,
     Add,
@@ -18,7 +19,6 @@ pub enum BinaryOp {
     LessThanOrEqual,
     GreaterThan,
     GreaterThanOrEqual,
-    Equal,
     NotEqual,
     And,
     Or,
@@ -77,12 +77,12 @@ impl BinaryOp {
                 | BinaryOp::Multiply
                 | BinaryOp::Divide
                 | BinaryOp::Add
-                | BinaryOp::Sub => vec![Type::Float, Type::Int],
-
-                BinaryOp::LessThanOrEqual
-                | BinaryOp::GreaterThanOrEqual
-                | BinaryOp::Equal
-                | BinaryOp::NotEqual => vec![Type::Float, Type::Int],
+                | BinaryOp::Sub
+                | BinaryOp::LessThanOrEqual
+                | BinaryOp::GreaterThanOrEqual => {
+                    vec![Type::Float, Type::Int]
+                }
+                BinaryOp::Equal | BinaryOp::NotEqual => vec![Type::Float, Type::Int, Type::Bool],
                 BinaryOp::Or | BinaryOp::And => vec![Type::Bool],
                 BinaryOp::ArrayDeref => unreachable!(),
             };

@@ -22,5 +22,15 @@ fn empty_test() {
 
 #[test]
 fn simple_test() {
-    assert_eq!(compile_and_run(include_str!("simple.ml")).unwrap(), 0);
+    assert_eq!(compile_and_run(include_str!("simple.ml")).unwrap(), 1);
+}
+
+#[test]
+fn operations_test() {
+    assert_eq!(compile_and_run(include_str!("operations.ml")).unwrap(), 1);
+}
+
+#[test]
+fn let_test() {
+    assert_eq!(compile_and_run(include_str!("let.ml")).unwrap(), 1);
 }
