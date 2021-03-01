@@ -5,7 +5,10 @@ use cranelift::codegen::Context;
 use cranelift::prelude::*;
 use cranelift_module::{DataContext, Linkage, Module};
 use cranelift_simplejit::{SimpleJITBuilder, SimpleJITModule};
+use function::FunctionTranslator;
 use std::collections::HashMap;
+
+mod function;
 
 pub struct Jit {
     builder_context: FunctionBuilderContext,
@@ -114,93 +117,13 @@ impl Jit {
             builder.declare_var(var, *variable_types.get(name).unwrap());
             builder.def_var(var, val);
         }
-        let mut trans = FunctionTranslator {
-            builder,
-            variables,
-            module: &mut self.module,
-        };
+        let mut trans = FunctionTranslator::new(builder, variables, &mut self.module);
 
         let return_value = trans.translate_expr(func.root())?;
 
-        trans.builder.ins().return_(&[return_value]);
-        trans.builder.finalize();
+        trans.builder().ins().return_(&[return_value]);
+        trans.builder().finalize();
         Ok(())
-    }
-}
-
-struct FunctionTranslator<'a, M: Module> {
-    builder: FunctionBuilder<'a>,
-    variables: HashMap<String, Variable>,
-    module: &'a mut M,
-}
-
-impl<'a, M: Module> FunctionTranslator<'a, M> {
-    fn translate_expr(&mut self, node: &SemNode) -> Result<Value> {
-        let real_ty = real_type(node.ty())?;
-        match node.expr() {
-            SemExpression::Int(val) => Ok(self.builder.ins().iconst(real_ty, *val)),
-            SemExpression::Bool(val) => Ok(self.builder.ins().bconst(real_ty, *val)),
-            SemExpression::Float(val) => Ok(self.builder.ins().f64const(*val)),
-            SemExpression::Id(id) => {
-                let _variable = self.variables.get(id).ok_or_else(|| {
-                    CompilerError::BackendError(format!("No variable {} available", id))
-                })?;
-                panic!();
-            } // TODO: semantic checking step?
-            SemExpression::FunCall(func_name, args) => {
-                self.translate_funcall(func_name, args, real_ty)
-            }
-            // BinaryOp(BinaryOp, Box<SemNode>, Box<SemNode>),
-            SemExpression::UnaryOp(op, n) => {
-                let operand = self.translate_expr(n)?;
-                match (op, node.ty()) {
-                    (ir::UnaryOp::Minus, ir::Type::Int) => Ok(self.builder.ins().ineg(operand)),
-                    (ir::UnaryOp::Minus, ir::Type::Float) => Ok(self.builder.ins().fneg(operand)),
-                    (ir::UnaryOp::Not, ir::Type::Bool) => Ok(self.builder.ins().bnot(operand)),
-                    _ => Err(CompilerError::BackendError(format!(
-                        "Invalid unary operation {:?} for type {:?}",
-                        op,
-                        node.ty()
-                    ))),
-                }
-            }
-            // Conditional(Box<SemNode>, Box<SemNode>, Box<SemNode>),
-            // Let(String, Box<SemNode>, Box<SemNode>),
-            // Array(Vec<SemNode>),
-            _ => Err(CompilerError::BackendError(format!(
-                "Unsupported node {:?}",
-                node
-            ))),
-        }
-    }
-    fn translate_funcall(
-        &mut self,
-        func_name: &str,
-        args: &[SemNode],
-        return_ty: cranelift::prelude::Type,
-    ) -> Result<Value> {
-        let args_values = args
-            .iter()
-            .map(|arg| self.translate_expr(arg))
-            .collect::<Result<Vec<_>>>()?;
-
-        // generate target signature
-        let mut sig = self.module.make_signature();
-        for arg in args {
-            sig.params.push(AbiParam::new(real_type(arg.ty())?));
-        }
-        sig.returns.push(AbiParam::new(return_ty));
-
-        let callee = self
-            .module
-            .declare_function(&func_name, Linkage::Import, &sig)
-            .expect("problem declaring function");
-        let local_callee = self
-            .module
-            .declare_func_in_func(callee, &mut self.builder.func);
-
-        let call = self.builder.ins().call(local_callee, &args_values);
-        Ok(self.builder.inst_results(call)[0])
     }
 }
 

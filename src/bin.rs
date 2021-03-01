@@ -11,9 +11,7 @@ fn main() {
 }
 
 fn try_main() -> Result<()> {
-    let arg = std::env::args()
-        .nth(1)
-        .ok_or_else(|| CompilerError::NoInput)?;
+    let arg = std::env::args().nth(1).ok_or(CompilerError::NoInput)?;
     let path = Path::new(&arg);
     let mut file =
         File::open(path).map_err(|_| CompilerError::FileError(path.display().to_string()))?;

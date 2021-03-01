@@ -40,11 +40,10 @@ fn parse(text: &str) -> Result<Vec<RawFunction>> {
             return Err(CompilerError::Syntax(format!(
                 "Undertermined syntax. More input needed to be sure: {:?}",
                 n
-            ))
-            .into());
+            )));
         }
         Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => {
-            return Err(CompilerError::Syntax(convert_error(&text, e)).into());
+            return Err(CompilerError::Syntax(convert_error(&text, e)));
         }
     };
 
@@ -54,11 +53,10 @@ fn parse(text: &str) -> Result<Vec<RawFunction>> {
             return Err(CompilerError::Syntax(format!(
                 "Undertermined syntax. More input needed to be sure: {:?}",
                 n
-            ))
-            .into());
+            )));
         }
         Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => {
-            return Err(CompilerError::Syntax(convert_error(&text, e)).into());
+            return Err(CompilerError::Syntax(convert_error(&text, e)));
         }
     };
     Ok(functions)

@@ -45,9 +45,10 @@ impl UnaryOp {
             UnaryOp::Not => vec![Type::Bool],
         };
         if !allowed_types.contains(operand) {
-            return Err(
-                CompilerError::WrongUnaryOperatorType(operand.clone(), self.clone()).into(),
-            );
+            return Err(CompilerError::WrongUnaryOperatorType(
+                operand.clone(),
+                self.clone(),
+            ));
         }
         Ok(())
     }
@@ -61,15 +62,13 @@ impl BinaryOp {
                     return Err(CompilerError::WrongBinaryOperatorType(
                         right_operand.clone(),
                         self.clone(),
-                    )
-                    .into());
+                    ));
                 }
             } else {
                 return Err(CompilerError::WrongBinaryOperatorType(
                     left_operand.clone(),
                     self.clone(),
-                )
-                .into());
+                ));
             }
         } else {
             let allowed_types = match self {
@@ -91,9 +90,10 @@ impl BinaryOp {
             left_operand.assert_eq(right_operand)?;
             let operand = left_operand; // same types
             if !allowed_types.contains(operand) {
-                return Err(
-                    CompilerError::WrongBinaryOperatorType(operand.clone(), self.clone()).into(),
-                );
+                return Err(CompilerError::WrongBinaryOperatorType(
+                    operand.clone(),
+                    self.clone(),
+                ));
             }
         }
         Ok(())
@@ -148,7 +148,7 @@ impl Type {
     }
     pub fn assert_eq(&self, other: &Self) -> Result<()> {
         if self != other {
-            return Err(CompilerError::TypeConflict(self.clone(), other.clone()).into());
+            return Err(CompilerError::TypeConflict(self.clone(), other.clone()));
         }
         Ok(())
     }

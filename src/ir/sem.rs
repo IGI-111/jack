@@ -146,13 +146,13 @@ impl SemNode {
             SemExpression::Float(_) => Type::Float,
             SemExpression::Id(name) => match ctx.vars().get(name) {
                 Some(ty) => ty.clone(),
-                None => return Err(CompilerError::UnknownVariable(name.to_string()).into()),
+                None => return Err(CompilerError::UnknownVariable(name.to_string())),
             },
             SemExpression::Let(_id, _val, expr) => expr.ty().clone(),
             SemExpression::FunCall(id, args) => {
                 let ftype = match ctx.funs().get(id) {
                     Some(ty) => ty.clone(),
-                    None => return Err(CompilerError::UnknownFunction(id.to_string()).into()),
+                    None => return Err(CompilerError::UnknownFunction(id.to_string())),
                 };
 
                 let (ret, argdefs) = ftype.as_function();
@@ -161,8 +161,7 @@ impl SemNode {
                         id.to_string(),
                         argdefs.len(),
                         args.len(),
-                    )
-                    .into());
+                    ));
                 }
 
                 for ((_arg_name, arg_type), arg_node) in argdefs.iter().zip(args.iter()) {
@@ -210,7 +209,7 @@ impl SemNode {
                                 unreachable!()
                             }
                         } else {
-                            return Err(CompilerError::CannotIndex(a.ty().clone()).into());
+                            return Err(CompilerError::CannotIndex(a.ty().clone()));
                         }
                     }
                 }
