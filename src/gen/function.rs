@@ -147,26 +147,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                     ))),
                 }
             }
-            SemExpression::Let(id, init, expr) => {
-                let var = Variable::new(self.var_counter);
-                self.var_counter += 1;
-                let val = self.translate_expr(init)?;
-
-                self.builder.declare_var(var, real_type(init.ty())?);
-                self.builder.def_var(var, val);
-
-                let shadowed_var = self.variables.remove(id.into());
-                self.variables.insert(id.into(), var);
-
-                let res = self.translate_expr(expr)?;
-
-                self.variables.remove(id.into());
-                if let Some(sv) = shadowed_var {
-                    self.variables.insert(id.into(), sv);
-                }
-
-                Ok(res)
-            }
+            SemExpression::Let(id, init, expr) => self.translate_let(id, init, expr),
             SemExpression::Id(id) => {
                 let variable: &Variable = self.variables.get(id).ok_or_else(|| {
                     CompilerError::BackendError(format!("No variable {} available", id))
@@ -219,6 +200,32 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         let phi = self.builder.block_params(merge_block)[0];
 
         Ok(phi)
+    }
+
+    fn translate_let(
+        &mut self,
+        id: &str,
+        init: &Box<SemNode>,
+        expr: &Box<SemNode>,
+    ) -> Result<Value> {
+        let var = Variable::new(self.var_counter);
+        self.var_counter += 1;
+        let val = self.translate_expr(init)?;
+
+        self.builder.declare_var(var, real_type(init.ty())?);
+        self.builder.def_var(var, val);
+
+        let shadowed_var = self.variables.remove(id.into());
+        self.variables.insert(id.into(), var);
+
+        let res = self.translate_expr(expr)?;
+
+        self.variables.remove(id.into());
+        if let Some(sv) = shadowed_var {
+            self.variables.insert(id.into(), sv);
+        }
+
+        Ok(res)
     }
 
     fn translate_funcall(
