@@ -1,1 +1,2 @@
-fun main(): int = let a = [1, 2, 3] in a[1]
+fun arr(): [int;3] = [1, 2, 3]
+fun main(): int = (arr())[2]

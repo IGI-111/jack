@@ -96,7 +96,7 @@ impl Jit {
             )));
         };
         ctx.func.signature.returns.push(AbiParam::new(ret_type));
-        // add special vmcontext param to potentiallu use global values
+        // add special vmcontext param to potentially use global values
         let vmcontext = AbiParam::special(
             self.module.target_config().pointer_type(),
             ArgumentPurpose::VMContext,

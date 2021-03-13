@@ -3,6 +3,7 @@ use crate::error::{CompilerError, Result};
 use crate::ir;
 use crate::ir::sem::*;
 use cranelift::codegen::ir::immediates::Offset32;
+use cranelift::codegen::ir::ArgumentPurpose;
 use cranelift::prelude::*;
 use cranelift_module::{Linkage, Module};
 use std::collections::HashMap;
@@ -126,6 +127,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                         Ok(self.builder.ins().bor(left_val, right_val))
                     }
                     (ir::BinaryOp::ArrayDeref, ir::Type::Array(_, _), ir::Type::Int) => {
+                        // TODO: add bounds checking
                         let elem_ty = match left.ty() {
                             ir::Type::Array(_num, elem_ty) => elem_ty,
                             _ => {
@@ -303,10 +305,21 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         args: &[SemNode],
         return_ty: cranelift::prelude::Type,
     ) -> Result<Value> {
-        let args_values = args
+        let mut args_values = args
             .iter()
             .map(|arg| self.translate_expr(arg))
             .collect::<Result<Vec<_>>>()?;
+
+        // add vmcontext to call args
+        let vmcontext = self
+            .builder
+            .func
+            .create_global_value(GlobalValueData::VMContext);
+        let vmcontext_value = self
+            .builder
+            .ins()
+            .global_value(self.module.target_config().pointer_type(), vmcontext);
+        args_values.push(vmcontext_value);
 
         // generate target signature
         let mut sig = self.module.make_signature();
@@ -315,6 +328,12 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 .push(AbiParam::new(real_type(arg.ty(), self.module)?));
         }
         sig.returns.push(AbiParam::new(return_ty));
+        // add special vmcontext param to potentially use global values
+        let vmcontext = AbiParam::special(
+            self.module.target_config().pointer_type(),
+            ArgumentPurpose::VMContext,
+        );
+        sig.params.push(vmcontext);
 
         let callee = self
             .module
