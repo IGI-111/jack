@@ -1,7 +1,7 @@
 use crate::error::{CompilerError, Result};
 use crate::ir;
 use crate::ir::sem::*;
-use cranelift::codegen::Context;
+use cranelift::codegen::{ir::ArgumentPurpose, Context};
 use cranelift::prelude::*;
 use cranelift_module::{DataContext, Linkage, Module};
 use cranelift_simplejit::{SimpleJITBuilder, SimpleJITModule};
@@ -51,7 +51,7 @@ impl Jit {
             let sig = sigs.get(name).unwrap();
             let id = self
                 .module
-                .declare_function(&name, Linkage::Export, &sig)
+                .declare_function(&name, Linkage::Local, &sig)
                 .map_err(|e| CompilerError::BackendError(e.to_string()))?;
             ids.insert(name, id);
         }
@@ -65,7 +65,7 @@ impl Jit {
             self.module
                 .define_function(*id, ctx, &mut codegen::binemit::NullTrapSink {})
                 .map_err(|e| {
-                    CompilerError::BackendError(format!("Can't define function: {}", e))
+                    CompilerError::BackendError(format!("Can't define function: {:?}", e))
                 })?;
         }
 
@@ -85,10 +85,10 @@ impl Jit {
             ctx.func
                 .signature
                 .params
-                .push(AbiParam::new(real_type(ty)?));
+                .push(AbiParam::new(real_type(ty, &self.module)?));
         }
         let ret_type = if let ir::Type::Function(ret, _args) = func.ty() {
-            real_type(ret)?
+            real_type(ret, &self.module)?
         } else {
             return Err(CompilerError::BackendError(format!(
                 "{:?} is not a function type",
@@ -96,6 +96,12 @@ impl Jit {
             )));
         };
         ctx.func.signature.returns.push(AbiParam::new(ret_type));
+        // add special vmcontext param to potentiallu use global values
+        let vmcontext = AbiParam::special(
+            self.module.target_config().pointer_type(),
+            ArgumentPurpose::VMContext,
+        );
+        ctx.func.signature.params.push(vmcontext);
 
         let mut builder = FunctionBuilder::new(&mut ctx.func, &mut self.builder_context);
 
@@ -107,7 +113,7 @@ impl Jit {
         // declare function block level variables
         let mut variable_types = HashMap::new();
         for (name, ty) in func.args() {
-            variable_types.insert(name, real_type(ty)?);
+            variable_types.insert(name, real_type(ty, &self.module)?);
         }
         let mut variables: HashMap<String, _> = HashMap::new();
         for (i, (name, _ty)) in func.args().iter().enumerate() {
@@ -128,11 +134,12 @@ impl Jit {
     }
 }
 
-fn real_type(ty: &ir::Type) -> Result<cranelift::prelude::Type> {
+fn real_type<M: Module>(ty: &ir::Type, module: &M) -> Result<cranelift::prelude::Type> {
     match ty {
         ir::Type::Int => Ok(types::I64),
         ir::Type::Bool => Ok(types::B1),
         ir::Type::Float => Ok(types::F64),
+        ir::Type::Array(_num, _inner) => Ok(module.target_config().pointer_type()),
         _ => Err(CompilerError::BackendError(format!(
             "Unsupported type {:?}",
             ty

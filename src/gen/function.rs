@@ -2,6 +2,7 @@ use super::real_type;
 use crate::error::{CompilerError, Result};
 use crate::ir;
 use crate::ir::sem::*;
+use cranelift::codegen::ir::immediates::Offset32;
 use cranelift::prelude::*;
 use cranelift_module::{Linkage, Module};
 use std::collections::HashMap;
@@ -28,7 +29,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         }
     }
     pub fn translate_expr(&mut self, node: &SemNode) -> Result<Value> {
-        let real_ty = real_type(node.ty())?;
+        let real_ty = real_type(node.ty(), self.module)?;
         match node.expr() {
             SemExpression::FunCall(func_name, args) => {
                 self.translate_funcall(func_name, args, real_ty)
@@ -124,7 +125,35 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                     (ir::BinaryOp::Or, ir::Type::Bool, ir::Type::Bool) => {
                         Ok(self.builder.ins().bor(left_val, right_val))
                     }
-                    // (ir::BinaryOp::ArrayDeref, ir::Type::Array(_, _), ir::Type::Int) => {} // TODO
+                    (ir::BinaryOp::ArrayDeref, ir::Type::Array(_, _), ir::Type::Int) => {
+                        let elem_ty = match left.ty() {
+                            ir::Type::Array(_num, elem_ty) => elem_ty,
+                            _ => {
+                                return Err(CompilerError::BackendError(format!(
+                                    "Error in Deref: {:?} is not of Array type",
+                                    node.ty()
+                                )))
+                            }
+                        };
+                        let real_elem_ty = real_type(elem_ty, self.module)?;
+
+                        let gv_val = left_val;
+                        let offset_val = self
+                            .builder
+                            .ins()
+                            .imul_imm(right_val, real_elem_ty.bytes() as i64);
+
+                        let offset_pointer_value = self.builder.ins().iadd(gv_val, offset_val);
+
+                        let elem_val = self.builder.ins().load(
+                            real_elem_ty,
+                            MemFlags::new(),
+                            offset_pointer_value,
+                            Offset32::new(0),
+                        );
+
+                        Ok(elem_val)
+                    }
                     _ => Err(CompilerError::BackendError(format!(
                         "Invalid binary operation {:?} over types {:?} and {:?}",
                         op,
@@ -133,7 +162,50 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                     ))),
                 }
             }
-            // Array(Vec<SemNode>), // TODO
+            SemExpression::Array(elems) => {
+                let elem_ty = match node.ty() {
+                    ir::Type::Array(_num, elem_ty) => elem_ty,
+                    _ => {
+                        return Err(CompilerError::BackendError(format!(
+                            "Error in Array literal: {:?} is not of Array type",
+                            node.ty()
+                        )))
+                    }
+                };
+                let real_elem_ty = real_type(elem_ty, self.module)?;
+                let vmcontext = self
+                    .builder
+                    .func
+                    .create_global_value(GlobalValueData::VMContext);
+                let gv = self
+                    .builder
+                    .func
+                    .create_global_value(GlobalValueData::IAddImm {
+                        base: vmcontext,
+                        offset: Imm64::new(0),
+                        global_type: real_ty, // pointer type
+                    });
+                let gv_value = self.builder.ins().global_value(real_ty, gv);
+                for (i, elem) in elems.iter().enumerate() {
+                    let offset = real_elem_ty.bytes() as i32 * i as i32;
+
+                    let elem_val = self.translate_expr(elem)?;
+
+                    self.builder.ins().store(
+                        MemFlags::new(),
+                        elem_val,
+                        gv_value,
+                        Offset32::new(offset),
+                    );
+                }
+
+                // fixme: this doesn't do anything but pass a vmcontext pointer, make it actually
+                // allocate something as a global value
+                // FIXME: allocate at the vmcontext without regard to position: TODO: write an
+                // allocator
+
+                Ok(gv_value)
+            }
             SemExpression::UnaryOp(op, n) => {
                 let operand = self.translate_expr(n)?;
                 match (op, n.ty()) {
@@ -157,10 +229,6 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
             SemExpression::Int(val) => Ok(self.builder.ins().iconst(real_ty, *val)),
             SemExpression::Bool(val) => Ok(self.builder.ins().bconst(real_ty, *val)),
             SemExpression::Float(val) => Ok(self.builder.ins().f64const(*val)),
-            _ => Err(CompilerError::BackendError(format!(
-                "Unsupported node {:?}",
-                node
-            ))),
         }
     }
 
@@ -212,7 +280,8 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         self.var_counter += 1;
         let val = self.translate_expr(init)?;
 
-        self.builder.declare_var(var, real_type(init.ty())?);
+        self.builder
+            .declare_var(var, real_type(init.ty(), self.module)?);
         self.builder.def_var(var, val);
 
         let shadowed_var = self.variables.remove(id.into());
@@ -242,13 +311,14 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         // generate target signature
         let mut sig = self.module.make_signature();
         for arg in args {
-            sig.params.push(AbiParam::new(real_type(arg.ty())?));
+            sig.params
+                .push(AbiParam::new(real_type(arg.ty(), self.module)?));
         }
         sig.returns.push(AbiParam::new(return_ty));
 
         let callee = self
             .module
-            .declare_function(&func_name, Linkage::Import, &sig)
+            .declare_function(&func_name, Linkage::Local, &sig)
             .expect("problem declaring function");
         let local_callee = self
             .module
