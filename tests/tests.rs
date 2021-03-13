@@ -34,3 +34,8 @@ fn operations_test() {
 fn let_test() {
     assert_eq!(compile_and_run(include_str!("let.ml")).unwrap(), 1);
 }
+
+#[test]
+fn array_test() {
+    assert_eq!(compile_and_run(include_str!("array.ml")).unwrap(), 42);
+}

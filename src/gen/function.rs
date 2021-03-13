@@ -8,11 +8,29 @@ use cranelift::prelude::*;
 use cranelift_module::{Linkage, Module};
 use std::collections::HashMap;
 
+// simple bump allocator
+// TODO: more sophisticated memory management
+struct Allocator {
+    cur: usize,
+}
+
+impl Allocator {
+    pub fn new() -> Self {
+        Self { cur: 0 }
+    }
+    pub fn alloc(&mut self, size: usize) -> usize {
+        let offset = self.cur;
+        self.cur += size;
+        offset
+    }
+}
+
 pub(crate) struct FunctionTranslator<'a, M: Module> {
     builder: FunctionBuilder<'a>,
     module: &'a mut M,
     variables: HashMap<String, Variable>,
     var_counter: usize,
+    allocator: Allocator,
 }
 
 impl<'a, M: Module> FunctionTranslator<'a, M> {
@@ -22,11 +40,13 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
         variables: HashMap<String, Variable>,
     ) -> Self {
         let var_counter = variables.len();
+        let allocator = Allocator::new();
         Self {
             builder,
             module,
             variables,
             var_counter,
+            allocator,
         }
     }
     pub fn translate_expr(&mut self, node: &SemNode) -> Result<Value> {
@@ -127,7 +147,7 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                         Ok(self.builder.ins().bor(left_val, right_val))
                     }
                     (ir::BinaryOp::ArrayDeref, ir::Type::Array(_, _), ir::Type::Int) => {
-                        // TODO: add bounds checking
+                        // TODO: add bounds checking (don't bounds check on constants)
                         let elem_ty = match left.ty() {
                             ir::Type::Array(_num, elem_ty) => elem_ty,
                             _ => {
@@ -165,8 +185,8 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                 }
             }
             SemExpression::Array(elems) => {
-                let elem_ty = match node.ty() {
-                    ir::Type::Array(_num, elem_ty) => elem_ty,
+                let (elem_count, elem_ty) = match node.ty() {
+                    ir::Type::Array(elem_count, elem_ty) => (elem_count, elem_ty),
                     _ => {
                         return Err(CompilerError::BackendError(format!(
                             "Error in Array literal: {:?} is not of Array type",
@@ -179,12 +199,16 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                     .builder
                     .func
                     .create_global_value(GlobalValueData::VMContext);
+
+                let array_bytes = *elem_count as usize * real_elem_ty.bytes() as usize;
+                let offset = Imm64::new(self.allocator.alloc(array_bytes) as i64);
+
                 let gv = self
                     .builder
                     .func
                     .create_global_value(GlobalValueData::IAddImm {
                         base: vmcontext,
-                        offset: Imm64::new(0),
+                        offset,
                         global_type: real_ty, // pointer type
                     });
                 let gv_value = self.builder.ins().global_value(real_ty, gv);
@@ -200,11 +224,6 @@ impl<'a, M: Module> FunctionTranslator<'a, M> {
                         Offset32::new(offset),
                     );
                 }
-
-                // fixme: this doesn't do anything but pass a vmcontext pointer, make it actually
-                // allocate something as a global value
-                // FIXME: allocate at the vmcontext without regard to position: TODO: write an
-                // allocator
 
                 Ok(gv_value)
             }
