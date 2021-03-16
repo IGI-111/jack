@@ -5,7 +5,7 @@ use crate::ir::raw::RawFunction;
 use crate::ir::Type;
 use nom::bytes::complete::tag;
 use nom::error::VerboseError;
-use nom::multi::separated_list;
+use nom::multi::separated_list0;
 use nom::sequence::tuple;
 use nom::IResult;
 
@@ -21,7 +21,7 @@ pub fn function(i: &str) -> IResult<&str, RawFunction, VerboseError<&str>> {
         identifier,
         sp,
         tag("("),
-        separated_list(tuple((sp, tag(","), sp)), argument),
+        separated_list0(tuple((sp, tag(","), sp)), argument),
         tag(")"),
         sp,
         tag(":"),

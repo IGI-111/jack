@@ -13,8 +13,8 @@ name = "jack"
 path = "src/bin.rs"
 
 [dependencies]
-nom = "5.0.0"
-cranelift = "0.68.0"
-cranelift-module = "0.68.0"
-cranelift-simplejit = "0.68.0"
-err-derive = "0.2.1"
+nom = "6.1.2"
+cranelift = "0.71.0"
+cranelift-module = "0.71.0"
+cranelift-jit = "0.71.0"
+err-derive = "0.3.0"

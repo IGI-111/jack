@@ -5,7 +5,7 @@ use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while1};
 use nom::combinator::opt;
 use nom::error::VerboseError;
-use nom::multi::{many0, separated_list};
+use nom::multi::{many0, separated_list0};
 use nom::sequence::tuple;
 use nom::IResult;
 
@@ -37,7 +37,7 @@ fn array_literal(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
     let (i, (_, _, exprs, _, _)) = tuple((
         tag("["),
         sp,
-        separated_list(tuple((sp, tag(","), sp)), expression),
+        separated_list0(tuple((sp, tag(","), sp)), expression),
         sp,
         tag("]"),
     ))(i)?;
@@ -59,7 +59,7 @@ fn fun_call(i: &str) -> IResult<&str, RawNode, VerboseError<&str>> {
         sp,
         tag("("),
         sp,
-        separated_list(tuple((sp, tag(","), sp)), expression),
+        separated_list0(tuple((sp, tag(","), sp)), expression),
         sp,
         tag(")"),
     ))(i)?;

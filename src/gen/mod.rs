@@ -3,8 +3,8 @@ use crate::ir;
 use crate::ir::sem::*;
 use cranelift::codegen::{ir::ArgumentPurpose, Context};
 use cranelift::prelude::*;
+use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{DataContext, Linkage, Module};
-use cranelift_simplejit::{SimpleJITBuilder, SimpleJITModule};
 use function::FunctionTranslator;
 use std::collections::HashMap;
 
@@ -13,13 +13,13 @@ mod function;
 pub struct Jit {
     builder_context: FunctionBuilderContext,
     _data_ctx: DataContext,
-    module: SimpleJITModule,
+    module: JITModule,
 }
 
 impl Jit {
     pub fn new() -> Self {
-        let builder = SimpleJITBuilder::new(cranelift_module::default_libcall_names());
-        let module = SimpleJITModule::new(builder);
+        let builder = JITBuilder::new(cranelift_module::default_libcall_names());
+        let module = JITModule::new(builder);
         Self {
             builder_context: FunctionBuilderContext::new(),
             _data_ctx: DataContext::new(),

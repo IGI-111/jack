@@ -3,7 +3,7 @@ use nom::branch::alt;
 use nom::bytes::complete::{tag, take_until, take_while, take_while1};
 use nom::combinator::all_consuming;
 use nom::error::VerboseError;
-use nom::multi::{many0, separated_list};
+use nom::multi::{many0, separated_list0};
 use nom::sequence::tuple;
 use nom::IResult;
 
@@ -34,13 +34,13 @@ fn non_comment(i: &str) -> IResult<&str, &str, VerboseError<&str>> {
 pub fn comments_ommited(i: &str) -> IResult<&str, String, VerboseError<&str>> {
     let (i, (_, r, _)) = all_consuming(tuple((
         many0(comment),
-        separated_list(comment, non_comment),
+        separated_list0(comment, non_comment),
         many0(comment),
     )))(i)?;
     Ok((i, r.join("")))
 }
 
 pub fn program(i: &str) -> IResult<&str, Vec<RawFunction>, VerboseError<&str>> {
-    let (i, (_, funs, _)) = all_consuming(tuple((sp, separated_list(sp, function), sp)))(&i)?;
+    let (i, (_, funs, _)) = all_consuming(tuple((sp, separated_list0(sp, function), sp)))(&i)?;
     Ok((i, funs))
 }

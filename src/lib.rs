@@ -43,7 +43,7 @@ fn parse(text: &str) -> Result<Vec<RawFunction>> {
             )));
         }
         Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => {
-            return Err(CompilerError::Syntax(convert_error(&text, e)));
+            return Err(CompilerError::Syntax(convert_error(text, e)));
         }
     };
 
@@ -56,7 +56,7 @@ fn parse(text: &str) -> Result<Vec<RawFunction>> {
             )));
         }
         Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => {
-            return Err(CompilerError::Syntax(convert_error(&text, e)));
+            return Err(CompilerError::Syntax(convert_error(text.as_str(), e)));
         }
     };
     Ok(functions)
